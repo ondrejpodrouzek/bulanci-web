@@ -271,11 +271,18 @@ The web used to play the torn-apart animations 204–210 for every death. In the
 
 Web: `deathChoice`, `deathSeconds` in `actor-frames.js`, `kill` in `engine.js`, `probe` in `mines.js`; tests `test/death.test.mjs`. Not ported: the body's exact drawing depth (`0x41c7c3`).
 
+## Update 31 Oct 2026: the mouse pointer (CGunMouse)
+
+The original screens have their own pointer, class `CGunMouse` (ctor `0x426060`, draw `0x424610`, restore `0x4249b0`). Crosshair bitmap 173 (75×75) is centred on the mouse, and red lines at 50% opacity run from it to the screen edges (`0x436310`, `0x436420`). A queue of 30 positions, one every 10 ms (`0x424370`, `0x4243b0`), drives a trail of dots 300 ms behind the mouse, at offset (2,3). The dots are animations 267, 266, 265 (table `0x4af900`); each end picks one at random (`0x423bd0`). Chunk 13 is the bitmap's opacity (`+0x18`), here 100.
+
+Web: `ui/gun-mouse.js`, mouse only. Not verified: whether the pointer shows during a game; the web shows it on the menu and dialogs only.
+
 ## Audit status, 31 Oct 2026
 
-Assets are verified against the EXE. A check of resources the web never uses gave these open items, none yet analysed:
+Assets are verified against the EXE. All resources the web did not use are now identified:
 
-- Bitmaps 22, 29, 128, 165, 169, 172 belong to the HUD (`0x4280f0`, `0x427f28`), see the open differences above.
-- Bitmaps 74, 132, 143, 146, 171 and animations 265–267 (13 px tall, chunk 13, referenced by script 323) have no known use.
+- Bitmaps 22, 29, 128, 165, 169 and 172 belong to the HUD (`0x4280f0`, `0x427f28`). Weapon icons are column 4 of table `0x482820`: 172, 169, 170, 171, 168, 167 for types 0–5.
+- Bitmaps 132, 143 and 146 are parts of the vertical scrollbar of `CListBox` (table `0x4ae5a0`: up 142/138/146, thumb 132/130/134, down 139/135/143, used by `0x408370`). The web's list has no scrollbar, so entries past its height are not reachable.
+- Bitmap 74 has no reference in the code, the data tables or any script: it is unused in the original too.
 
-The game logic has not been compared function by function. Earlier updates cover what was ported, but a port is not proof that nothing else is missing, as this death bug shows.
+The game logic has not been compared function by function. Earlier updates cover what was ported, but a port is not proof that nothing else is missing, as the death bug showed.

@@ -14,3 +14,5 @@
    built the 800x600 stage, so a reload no longer flashes the old web menu. */
 #menu .menu-options{visibility:hidden!important}
 #menu:not(:has(.original-menu-stage)){visibility:hidden}
+
+#gun-mouse{position:absolute;inset:0;margin:auto;z-index:70;pointer-events:none}#gun-mouse[hidden]{display:none}#game-frame.gun-cursor,#game-frame.gun-cursor *{cursor:none!important}
