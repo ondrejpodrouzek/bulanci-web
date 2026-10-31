@@ -1,80 +1,78 @@
-# Původní zbraně: opravené přiřazení grafiky, animací a ústí
+# Original weapons: corrected assignment of graphics, animations and muzzles
 
-Zdroj: původní `bulanci_hra/bulanci.exe` a jeho resources t52. Program se při tomto rozboru nespouštěl.
+Source: the original `bulanci.exe` and its t52 resources. The program was not run for this analysis.
 
-Reprodukovatelný export: `python analysis/recover_weapon_visuals_exact.py`. Kompletní data: `analysis/weapon-visuals-exact.json`.
+## The basic error of the previous web version
 
-## Zásadní chyba předchozí webové verze
+The assignment was guessed from the look of the weapon. That caused a swap: the long weapon 285–288 is the **SMG**, while the large grey weapon 289–292 is the **rocket launcher**. The shotgun is the wooden weapon 273–276. The web really was drawing a different weapon, so moving the old SMG would not have been enough.
 
-Přiřazení bylo odhadnuté podle vzhledu zbraně. To vedlo k záměně: dlouhá zbraň285–288 je **samopal**, zatímco velká šedá zbraň289–292 je **raketomet**. Brokovnice je dřevěná zbraň273–276. Nestačí tedy změnit pozici stávajícího samopalu — web skutečně vykresloval jinou zbraň.
+CWeapon constructor `0x41dbc0` loads the type into `CWeapon+0x64` at `0x41dc2e` and the row from table `0x482820 + 28*type` at `0x41dc46`. The first four uint32 are resources for directions L/R/U/D.
 
-Konstruktor CWeapon `0x41dbc0` načte typ do `CWeapon+0x64` na`0x41dc2e` a řádek z tabulky`0x482820 + 28*typ` na`0x41dc46`. První čtyři uint32 jsou prostředky směrů L/R/U/D.
-
-| Původní typ | Zbraň | V ruce L/R/U/D | Sběratelný prostředek | Animace |
+| Original type | Weapon | In hand L/R/U/D | Pickup resource | Animation |
 |---:|---|---|---:|---:|
-|0|Pistole|270,271,272,269|není|5 snímků /210ms|
-|1|Brokovnice|274,275,276,273|179|11 snímků /781ms|
-|2|Mina / položení nálože|278,279,280,277|268|5 snímků /355ms|
-|3|Roznětka|282,283,284,281|není|5 snímků /355ms|
-|4|Samopal|286,287,288,285|222|9 snímků /639ms|
-|5|Raketomet|290,291,292,289|219|5 snímků /355ms|
+| 0 | Pistol | 270,271,272,269 | none | 5 frames / 210 ms |
+| 1 | Shotgun | 274,275,276,273 | 179 | 11 frames / 781 ms |
+| 2 | Mine / placing a charge | 278,279,280,277 | 268 | 5 frames / 355 ms |
+| 3 | Detonator | 282,283,284,281 | none | 5 frames / 355 ms |
+| 4 | SMG | 286,287,288,285 | 222 | 9 frames / 639 ms |
+| 5 | Rocket launcher | 290,291,292,289 | 219 | 5 frames / 355 ms |
 
-Sběratelné prostředky jsou z tabulky`0x4827f4`, kterou indexuje`0x41d248` podle stejného typu. Tabulka přesně obsahuje`[-1,0x100b3,0x1010c,-1,0x100de,0x100db]`. Web dosud používal222 jako brokovnici a219 jako samopal; obojí bylo chybně.
+Pickup resources come from table `0x4827f4`, indexed by `0x41d248` by the same type. The table contains exactly `[-1,0x100b3,0x1010c,-1,0x100de,0x100db]`.
 
-Názvy jsou potvrzené chováním, nikoli pouhým vzhledem:
+The names are confirmed by behaviour, not just looks:
 
-- Typ1 spouští`0x41fdf0`, přehrává sample13 a vytváří CShot kind1 s pěti broky.
-- Typ4 callback`0x42134d..0x421409` zpracovává čtyři události animace0..3, vytváří jednotlivé střely kind3..6: čtyřranná dávka samopalu.
-- Typ5 callback`0x421409..0x4214c8` vytváří CShot kind2, raketu.
-- Typ3 dispatch`0x420650` volá`0x41ed60`; ta prochází objekty class0x816, filtruje vlastní miny a volá`0x41e070`, tedy rozbušku/roznětku.
+- Type 1 runs `0x41fdf0`, plays sample 13 and creates a CShot kind 1 with five pellets.
+- Type 4 callback `0x42134d..0x421409` processes four animation events 0..3 and creates individual shots of kinds 3..6: a four-round SMG burst.
+- Type 5 callback `0x421409..0x4214c8` creates a CShot kind 2, a rocket.
+- Type 3 dispatch `0x420650` calls `0x41ed60`, which walks objects of class 0x816, filters the owner's mines and calls `0x41e070`: a detonator.
 
-## Hraní animace řídí okamžiky výstřelů
+## Animation playback drives the moments of shots
 
-Časový plánovač`0x4399b0` používá intervaly`floor((f+1)*ticks/N)-floor(f*ticks/N)`.
+Scheduler `0x4399b0` uses intervals `floor((f+1)*ticks/N)-floor(f*ticks/N)`.
 
-Samopal má v chunk12 události na snímcích1,3,5,7: ID0,1,2,3. Při základním časování639ms /9snímků jde o **71,213,355,497ms od spuštění animace**. Jeho střelba proto nemá být implementovaná jako libovolně rychlý souvislý proud16 nábojů ani jako animace, která se pokaždé resetuje po0.11s.
+The SMG has chunk 12 events on frames 1, 3, 5, 7: IDs 0, 1, 2, 3. With the base timing of 639 ms / 9 frames this is **71, 213, 355, 497 ms from animation start**.
 
-Mina i raketomet mají událost0 na snímku2, tedy142ms od začátku355ms animace. Pistole a brokovnice nemají chunk12 výstřelu; jejich počáteční firefunkce provede střelbu přímo a zároveň rozběhne animaci.
+The mine and rocket launcher have event 0 on frame 2, i.e. 142 ms into the 355 ms animation. The pistol and shotgun have no firing chunk 12; their initial fire function shoots directly and starts the animation.
 
-Soubory t52 mají kromě N obyčejných snímků i dodatečný ring snímek N na konci. Export ponechává tento snímek i všechny jeho události. Nesmí se automaticky zaměnit údaj N za počet všech bloků v souboru.
+Besides N regular frames, t52 files have an extra ring frame N at the end. The value N must not be taken for the number of all blocks in the file.
 
-## Body uchycení a vrstva rukou
+## Anchor points and the hand layer
 
-Chunk11 `{byte id,int16 x,int16 y}` poskytuje body spojení. Body přetrvávají, když další snímek nemá nový chunk11. Všech130 prostředků v této hře má nejvýše jeden bod v chunk11.
+Chunk 11 `{byte id, int16 x, int16 y}` provides join points. Points persist when the next frame has no new chunk 11. All 130 resources in this game have at most one point in chunk 11.
 
-Dekodér`0x432850` předá událost přes`0x436eb0`, callback těla`0x4178f0` a callback zbraně`0x417a00` uloží x/y do příslušných polí.
+Decoder `0x432850` passes the event through `0x436eb0`; body callback `0x4178f0` and weapon callback `0x417a00` store x/y in their fields.
 
 ```text
 weaponTL = bodyTL + bodyAnchor(currentBodyFrame) - weaponAnchor(currentWeaponFrame)
 ```
 
-Renderer`0x417640`:
+Renderer `0x417640`:
 
-- Nahoru: celá zbraň za tělem.
-- Dolů: celá zbraň před tělem.
-- Doleva: řádky zbraně před hranicí`floor(height/2)-7` za tělem; zbytek před tělem.
-- Doprava: stejný princip, hranice`floor(height/2)+5`.
+- Up: the whole weapon behind the body.
+- Down: the whole weapon in front of the body.
+- Left: weapon rows before the boundary `floor(height/2)-7` behind the body, the rest in front.
+- Right: the same principle, boundary `floor(height/2)+5`.
 
-## Ústí hlavně je vztažené k celkovému obdélníku postavy
+## The muzzle is relative to the character's overall rectangle
 
-Původní fire funkce přičítají offset k`CBulanek+0x20/+0x24`. To je po`0x41af70` **levý horní roh sjednocení těla a zbraně**, nikoli střed postavy ani samotný začátek těla.
+Original fire functions add the offset to `CBulanek+0x20/+0x24`. After `0x41af70` that is the **top-left corner of the union of body and weapon**, not the character centre or the body start.
 
-Je-li webová souřadnice těla B a souřadnice zbraně W spočtená podle bodů uchycení:
+With body position B and weapon position W computed from anchor points:
 
 ```text
 actorTL = (min(B.x,W.x), min(B.y,W.y))
 muzzleTL = actorTL + muzzleTable[direction]
 ```
 
-Offsety nejsou indexované typem zbraně, ale směrem 0=L,1=R,2=U,3=D:
+Offsets are indexed by direction 0=L, 1=R, 2=U, 3=D, not by weapon type:
 
-| Zbraň | Tabulka | L | R | U | D |
+| Weapon | Table | L | R | U | D |
 |---|---|---|---|---|---|
-|Pistole|0x482928|(-19,46)|(77,25)|(17,-11)|(32,84)|
-|Brokovnice|0x482948|(-19,47)|(77,33)|(18,-11)|(29,84)|
-|Samopal|0x4829d0|(-19,44)|(77,33)|(19,-13)|(28,88)|
-|Raketomet|0x4829b0|(-25,40)|(77,27)|(16,-17)|(26,84)|
+| Pistol | 0x482928 | (-19,46) | (77,25) | (17,-11) | (32,84) |
+| Shotgun | 0x482948 | (-19,47) | (77,33) | (18,-11) | (29,84) |
+| SMG | 0x4829d0 | (-19,44) | (77,33) | (19,-13) | (28,88) |
+| Rocket launcher | 0x4829b0 | (-25,40) | (77,27) | (16,-17) | (26,84) |
 
-Důkaz použití: pistole`0x41fd35..0x41fd60`, brokovnice`0x41fe33..0x41fe5e`, samopal`0x42136b..0x421390`, raketomet`0x42142e..0x42144a`.
+Evidence of use: pistol `0x41fd35..0x41fd60`, shotgun `0x41fe33..0x41fe5e`, SMG `0x42136b..0x421390`, rocket launcher `0x42142e..0x42144a`.
 
-Samotná pravidla kapacity, přebíjení a speciálního šíření/exploze jsou v navazujícím rozboru`weapon-types-exact.md/json`; tento výstup je zaměřený na skutečné prostředky a jejich vizuální události.
+Capacity, reloading and special spread or explosion rules are in `weapon-types-exact.md`.

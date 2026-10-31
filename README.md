@@ -1,74 +1,75 @@
-# Bulánci — webová rekonstrukce
+# Bulánci — web reconstruction
 
-Neoficiální rekonstrukce české hry Bulánci (SleepTeam Labs, 1999–2002) pro prohlížeč.
+An unofficial browser reconstruction of the Czech game Bulánci (SleepTeam Labs, 1999–2002).
 
-**Tohle repo ani server neobsahují grafiku, zvuky, hudbu, písma, filmy ani básně původní hry.**
-Každý hráč si při prvním spuštění vybere vlastní `bulanci.exe`. Prohlížeč z něj data vytáhne
-a uloží si je u sebe. EXE se nespouští a nikam se neodesílá. V Gitu je jen kód, číselná
-metadata (rozložení map, parametry zbraní, popis animací) a dokumentace.
+**[Play the live demo](https://ondrejpodrouzek.github.io/bulanci-web/)** · you need your own `bulanci.exe` v1.80 · [how it was made](docs/how-it-was-made.md)
 
-Autorská práva k původní hře patří SleepTeam Labs. Projekt s nimi není nijak spojený.
+**This repository and the website contain no graphics, sounds, music, fonts, films or poems from
+the original game.** On first launch every player selects their own `bulanci.exe`. The browser
+extracts the data and keeps it locally. The EXE is never run or uploaded. Git holds only code,
+numeric metadata (map layouts, weapon parameters, animation descriptions) and documentation.
 
-**[Hrát na webu](https://ondrejpodrouzek.github.io/bulanci-web/)** · potřebujete vlastní `bulanci.exe` verze 1.80 · [jak hra vznikla](docs/jak-hra-vznikla.md)
+The original game is copyright SleepTeam Labs. This project is not affiliated with them.
 
-Web na GitHub Pages je pro hru na jednom počítači. Hra po síti potřebuje běžící server, takže na
-něm nejde; spusťte si ji u sebe nebo na vlastním VPS.
+The live demo on GitHub Pages is for play on one computer. Network play needs a running server,
+so it does not work there; run the game yourself or on your own VPS.
 
-## Spuštění u sebe
+## Run it yourself
 
-Potřebujete Node.js 20+ a aktuální prohlížeč. Závislosti se neinstalují.
+You need Node.js 20+ and a current browser. Nothing has to be installed.
 
 ```sh
 npm start        # http://127.0.0.1:4173
 ```
 
-Otevřete adresu a vyberte `bulanci.exe` verze 1.80. Trvá to asi půl minuty a příště už to
-není potřeba. Znovu se na něj hra zeptá jen po smazání dat prohlížeče.
+Open the address and select `bulanci.exe` v1.80. It takes about half a minute and is needed only
+once, unless you clear your browser data. The game's interface is in Czech, like the original.
 
-## Hra po síti
+## Network play
 
-Hostitel založí hru, ostatní se připojí ze seznamu her v menu Hra po síti. Každý hráč
-potřebuje svůj naimportovaný `bulanci.exe`. Hru počítá **prohlížeč hostitele**. Ostatní posílají
-klávesy a 30× za sekundu dostávají stav hry. Server (`net-server.mjs`, WebSocket na `/net`)
-drží jen seznam her a přeposílá zprávy. Vejdou se až 4 prohlížeče v jedné hře.
+The host creates a game and the others join from the list under Hra po síti. Every player needs
+their own imported `bulanci.exe`. The **host's browser** runs the game. The others send their
+keys and receive the game state 30 times a second. The server (`net-server.mjs`, a WebSocket on
+`/net`) only keeps the list of games and relays messages. One game takes up to 4 browsers.
 
-- odejde-li hostitel nebo uspí záložku, hra skončí (ostatní to poznají do 8 s),
-- hostitel má nulové zpoždění, ostatní mají ping k serveru a zpět; stav se neinterpoluje,
-- po skončení kola se všichni vrátí do menu,
-- server snese špatné klienty, limit spojení je ale společný, ne na jednu IP adresu.
+- If the host leaves or their tab sleeps, the game ends (the others notice within 8 s).
+- The host has no delay, the others have their round trip to the server; the state is not
+  interpolated.
+- After a round everyone returns to the menu.
+- The server withstands misbehaving clients, but its connection limit is global, not per IP.
 
-## Nasazení na VPS
+## Deploying to a VPS
 
-Na server patří jen tohle repo. **Nikdy tam nedávejte `bulanci.exe` ani `dist/assets` s daty hry.**
-Import vyžaduje HTTPS (mimo `localhost`), který zařídí Caddy. Statický hosting stačí
-pro hru na jednom počítači, hra po síti potřebuje běžící `server.mjs`.
+Only this repository goes on the server. **Never put `bulanci.exe` or `dist/assets` with game data
+there.** The import requires HTTPS (except on `localhost`), which Caddy provides.
 
 ```sh
 sudo apt install nodejs caddy
-sudo git clone <url-repa> /opt/bulanci-web
+sudo git clone https://github.com/ondrejpodrouzek/bulanci-web /opt/bulanci-web
 sudo useradd --system bulanci
 sudo cp /opt/bulanci-web/deploy/bulanci.service /etc/systemd/system/
 sudo systemctl enable --now bulanci
 ```
 
-Do `/etc/caddy/Caddyfile` vložte `deploy/Caddyfile` se svou doménou a spusťte
-`sudo systemctl reload caddy`. Doména musí mířit na server a porty 80 a 443 musí být otevřené.
+Put `deploy/Caddyfile` with your domain into `/etc/caddy/Caddyfile` and run
+`sudo systemctl reload caddy`. The domain must point at the server and ports 80 and 443 must be
+open.
 
-Proměnné prostředí: `BULANCI_HOST` (výchozí `127.0.0.1`), `PORT` (výchozí `4173`). Server
-nechte na `127.0.0.1` za proxy.
+Environment variables: `BULANCI_HOST` (default `127.0.0.1`), `PORT` (default `4173`). Keep the
+server on `127.0.0.1` behind the proxy.
 
-## Vývoj
+## Development
 
-`npm test` běží i bez dat hry. Kontroly `verify-browser.mjs` a `verify-network.mjs` potřebují
-`npx playwright install chromium` a data v `dist/assets`, která lokálně vyrobí
-`python tools/import_assets.py bulanci.exe` (`pip install -r tools/requirements.txt`).
-Tenhle adresář je v `.gitignore`; nepublikujte ho.
+`npm test` runs without game data. `verify-browser.mjs` and `verify-network.mjs` need
+`npx playwright install chromium` and data in `dist/assets`, which
+`python tools/import_assets.py bulanci.exe` builds locally (`pip install -r tools/requirements.txt`).
+That directory is in `.gitignore`; do not publish it.
 
-## Dokumentace
+## Documentation
 
-- `docs/jak-hra-vznikla.md`: jak hra vznikla, co potřebuje a jak ji spustit,
-- `docs/reverse-engineering.md`: jak se z EXE dostávají data a jak číst poznámky,
-- `dist/reconstruction.md`: hlavní deník rekonstrukce, včetně otevřených rozdílů proti originálu,
-- `docs/analysis/`: podrobné rozbory jednotlivých částí.
+- `docs/how-it-was-made.md`: how the game was made, what it needs and how to run it,
+- `docs/reverse-engineering.md`: how the data is extracted from the EXE, and a guide to the notes,
+- `dist/reconstruction.md`: the main reconstruction log, including open differences from the original,
+- `docs/analysis/`: detailed studies of individual parts.
 
-Hra není 1:1 kopie. Největší známý rozdíl je herní HUD.
+The game is not a 1:1 copy. The largest known difference is the in-game HUD.

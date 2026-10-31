@@ -1,290 +1,274 @@
-# Původní menu a dialogy — rozbor (krok 3a, 28. 10. 2026)
+# Original menu and dialogs — analysis (step 3a, 28 Oct 2026)
 
-Zdroj: dodané `bulanci_hra/bulanci.exe` (statický rozbor), nástroj `analysis/dump_dialogs.py`
-(výstup `analysis/ui-dialogs.txt`), tabulka textů `[0x4afbbc] = 0x4af9b8` (výpis
-`analysis/ui-texts.txt`), písma `analysis/export_fonts.py`. Vizuální reference: dobové
-snímky v `analysis/ui-reference/` (Gamez.cz, 320×240).
+Source: the supplied `bulanci.exe` (static analysis), text table `[0x4afbbc] = 0x4af9b8`. Visual
+reference: period screenshots (Gamez.cz, 320×240).
 
-## Písma (t54)
+## Fonts (t54)
 
-| Resource | Proužek | Řádek / buňka | Použití |
+| Resource | Strip | Line / cell | Use |
 |---|---|---|---|
-| 174 | 1713×16, 2 bity, paleta bílá/#ccc/#adadad | 19 / 16 | nadpisy, popisky, tlačítka |
-| 175 | 1069×13, 1 bit | 15 / 13 | malé texty, editační pole, statistika |
-| 176 | 879×11, 1 bit | 9 / 11 | „Verze: 1.80“ |
+| 174 | 1713×16, 2 bits, palette white/#ccc/#adadad | 19 / 16 | headings, labels, buttons |
+| 175 | 1069×13, 1 bit | 15 / 13 | small text, edit fields, statistics |
+| 176 | 879×11, 1 bit | 9 / 11 | "Verze: 1.80" |
 
-Za pixely je 8 B (výška řádku, výška buňky) a 256 záznamů po 5 B podle kódu Windows-1250:
-`uint16 x, uint8 šířka, uint8 první řádek, uint8 řádek za posledním`. Index palety 0 je
-průhledný. Export: `web/dist/assets/original/fonts/<id>.png/.json`. Mezera mezi znaky
-(zatím 1 px) se ověří v kreslicí rutině `CStaticText`.
+After the pixels come 8 bytes (line height, cell height) and 256 records of 5 bytes by Windows-1250
+code: `uint16 x, uint8 width, uint8 first row, uint8 row after the last`. Palette index 0 is
+transparent.
 
-## Obrazovky a kde vznikají
+## Screens and where they are created
 
-Rozměry oken a souřadnice prvků jsou v pixelech scény 800×600; souřadnice prvků jsou
-relativní k oknu. Přiřazení argumentů k prvkům je z výpisu instrukcí a u některých prvků
-se ještě upřesní (viz `ui-dialogs.txt`).
+Window sizes and element coordinates are pixels of the 800×600 scene; element coordinates are
+relative to the window.
 
-| Obrazovka | Funkce / třída | Obsah |
+| Screen | Function / class | Content |
 |---|---|---|
-| Hlavní menu | `CMenu` | Start, Historie, Konec (web: `original-menu.js`, hotovo) |
-| Start hry 1 | `0x40c650`, `CStartGame1` (okno 0xfa,0x3c–0x2f8,0x230) | „Hru:“ Vytvořit/Připojit se; „Počet hráčů celkem:“ 1 hráč (trénink)/2/3/4 hráči; „Na tomto počítači:“ 1/2/3 hráči; „Způsob připojení:“ TCP/IP / IPX; tlačítko „Dále“ |
-| Start hry 2 | `0x4104f0`, `CStartGame2` (okno 0xe6,0x32–0x2f8,0x230) | pro každého místního hráče `CColorSet` (paleta), náhled bulánka (`CGameView`/`CDSAnim`), jméno (`CEdit`, písmo 175), „Ovládání“; „Typ hry“ + „Typ hry:“ text; „Nastavení“; „Levely:“ (`CLevelList`); „Start“; „Hra je vytvořena, stiskněte Start...“; „Zrušit“ |
-| Typ hry | `0x40d930`, `CGameTypeDlg` (okno 0x140×0xda) | „Typ hry:“ na zásahy/na čas/na životy; „Mód zbraní:“ pouze brokovnice/všechny zbraně; tři číselná pole (5–999, 10–9999, 5–999); Ok / Zrušit |
-| Ovládání | `0x40f7d0` (okno 0x118×0xb4) | „Vlevo: … Změna zbraně:“ a názvy kláves; Ok |
-| Nastavení | `0x40e290`, `CSetupDlg` (okno 0x122×0x8c) | „Vyvážení: %d%% hudby a %d%% efektů“, `CVolume`; Ok / Zrušit |
-| Pauza | `0x411df0` | „Hra je pozastavena“; Pozastav, Pokračuj, Nastavení, Konec hry |
-| Načítání | `0x40dfb0`, `CLoadingLevel` (okno 0xfa×0x4b) | „Načítá se level...“, `CProgressBar` |
-| Statistika | `0x410e20` → `CLevelScore` | celoobrazovkové okno 0x320×0x258; bitmapy 34–36, 164, 149; animace 303; texty „Zabil: %dx“, „Mrtev: %dx“; tabulka Pořadí/Level/Jméno/Zabil/Mrtev/Rozdíl |
-| Konec | `0x411b50`, `CExitDlg` | animace 305, 306; „Konec hry“ |
-| Zpráva | `0x40be80`, `CMsgDialog` | text + tlačítko — hotovo (krok 3d-8) |
-| Síť | `0x40c060` (IP adresa), `0x40c2d0` (seznam her), `0x4102d0` (chat) | pro WebSocket multiplayer jen jako vzor vzhledu |
-| Nápověda, Historie | `CHelpDlg` ctor `0x421e40`, `CHistoryDlg` `0x4231d0` | Historie hotová podle originálu (viz „Historie“ níže); nápověda je nedosažitelná, viz krok 3d-8 |
-| Hlavní menu — scéna | `0x4265e0` (konstruktor `CMenu`) | pozadí 315, noční bitmapa 313, `CPoemScroller` („chvilka poezie“), „Verze: 1.80“ (písmo 176), 4× `CRuch` — hotovo, viz níže |
+| Main menu | `CMenu` | Start, Historie, Konec (web: `original-menu.js`, done) |
+| Start hry 1 | `0x40c650`, `CStartGame1` (window 0xfa,0x3c–0x2f8,0x230) | "Hru:" Vytvořit/Připojit se; total players: 1 (training)/2/3/4; on this computer: 1/2/3; connection: TCP/IP / IPX; "Dále" button |
+| Start hry 2 | `0x4104f0`, `CStartGame2` (window 0xe6,0x32–0x2f8,0x230) | for each local player `CColorSet` (palette), bulánek preview (`CGameView`/`CDSAnim`), name (`CEdit`, font 175), "Ovládání"; "Typ hry" and its text; "Nastavení"; "Levely:" (`CLevelList`); "Start"; "Hra je vytvořena, stiskněte Start..."; "Zrušit" |
+| Typ hry | `0x40d930`, `CGameTypeDlg` (window 0x140×0xda) | game type hits/time/lives; weapon mode shotgun only/all weapons; three numeric fields (5–999, 10–9999, 5–999); Ok / Zrušit |
+| Ovládání | `0x40f7d0` (window 0x118×0xb4) | direction, fire and weapon-change labels and key names; Ok |
+| Nastavení | `0x40e290`, `CSetupDlg` (window 0x122×0x8c) | "Vyvážení: %d%% hudby a %d%% efektů", `CVolume`; Ok / Zrušit |
+| Pause | `0x411df0` | "Hra je pozastavena"; Pozastav, Pokračuj, Nastavení, Konec hry |
+| Loading | `0x40dfb0`, `CLoadingLevel` (window 0xfa×0x4b) | "Načítá se level...", `CProgressBar` |
+| Statistics | `0x410e20` → `CLevelScore` | full-screen window 0x320×0x258; bitmaps 34–36, 164, 149; animation 303; texts "Zabil: %dx", "Mrtev: %dx"; table Pořadí/Level/Jméno/Zabil/Mrtev/Rozdíl |
+| Konec | `0x411b50`, `CExitDlg` | animations 305, 306; "Konec hry" |
+| Message | `0x40be80`, `CMsgDialog` | text and button, done (step 3d-8) |
+| Network | `0x40c060` (IP address), `0x40c2d0` (game list), `0x4102d0` (chat) | a look reference for the WebSocket multiplayer only |
+| Help, Historie | `CHelpDlg` ctor `0x421e40`, `CHistoryDlg` `0x4231d0` | Historie done from the original (see below); help is unreachable, see step 3d-8 |
+| Main menu scene | `0x4265e0` (`CMenu` constructor) | background 315, night bitmap 313, `CPoemScroller`, "Verze: 1.80" (font 176), 4× `CRuch`, done, see below |
 
-## Výchozí nastavení (0x40a290)
+## Default settings (0x40a290)
 
-Typ hry 1 (na čas), mód zbraní 1 (všechny), zásahy 30, čas 180 s, životy 30; počty hráčů
-`+0x32 = +0x33 = 2`; výchozí klávesy šesti hráčů z tabulky `0x4ae604`/`0x4ae60c`/`0x4ae614`
-(texty „šipka vlevo…“, „mezerník“, „Num 1/0/4/5/6/8“).
+Game type 1 (time), weapon mode 1 (all), hits 30, time 180 s, lives 30; player counts
+`+0x32 = +0x33 = 2`; default keys of six players from tables `0x4ae604`/`0x4ae60c`/`0x4ae614`.
 
-## Kreslení prvků (krok 3b)
+## Drawing elements (step 3b)
 
-Okna (`CWindow`) samy nic nekreslí: dialogy leží přímo na obrázku menu, bez rámečku a pozadí
-(souhlasí se snímkem „Start hry“). Prvky se kreslí metodou 14 své vtable.
+Windows (`CWindow`) draw nothing themselves: dialogs lie directly on the menu picture, with no frame
+or background (matching the "Start hry" screenshot). Elements draw through method 14 of their vtable.
 
-**Průhlednost podle stavu** (`0x402f40`, bity `+0x44`): neaktivní (4) `0x303030`, aktivní /
-fokus (2) `0x909090`, jinak `0x858585`. Hodnota je krytí po kanálech (`0x436310` → `0x445f10`:
-`0xffffff` = plné krytí, 0 = nic, jinak míchání přes tabulku). U bitmap se zapisuje do
-`[bitmapa+0x18]` a po kreslení vrací na `0xff`.
+**Opacity by state** (`0x402f40`, bits of `+0x44`): inactive (4) `0x303030`, active / focus (2)
+`0x909090`, otherwise `0x858585`. The value is per-channel opacity (`0x436310` → `0x445f10`:
+`0xffffff` = fully opaque, 0 = nothing, otherwise a table blend). For bitmaps it is written to
+`[bitmap+0x18]` and returned to `0xff` after drawing.
 
-| Prvek | Kreslení | Podrobnosti |
+| Element | Drawing | Details |
 |---|---|---|
-| `CButton` | `0x4056b0` | bitmapy 31 normální / 30 fokus (`+0x44 & 8`) / 32 stisknuté (`+0x8f`), 82×25, s krytím stavu; text písmem 174, styl 5 (na střed), při stisku posun +1,+1 |
-| `CRadio` | `0x403ac0` | bitmapy 121 / 119 fokus / 122 vybraný / 120 vybraný + fokus / 123 neaktivní položka (15×15); položky pod sebou s krokem výška + 2; text 11 px za bitmapou, písmo 175 |
-| `CEdit`, `CNumEdit` | `0x406100` | rámeček `0x404e80` (obrys `#b7b7b7`, vnitřní `#575757`, další `#b7b7b7`, černá výplň, vše s krytím stavu); text odsazený 5 px |
-| `CListBox` | `0x406d00` | rámeček `0x404180`, výplň stavem (bílou nahrazuje `#a0a0a0`), položky virtuální metodou |
-| `CColorSet` | `0x40aed0` | bitmapa palety o 1 px dovnitř, vybraná buňka obtažená `#eeeeee` |
-| `CProgressBar` | `0x40b1f0` | rámeček `0x436530` + výplň `0x4365f0` |
+| `CButton` | `0x4056b0` | bitmaps 31 normal / 30 focus (`+0x44 & 8`) / 32 pressed (`+0x8f`), 82×25, with state opacity; text in font 174, style 5 (centred), offset +1,+1 when pressed |
+| `CRadio` | `0x403ac0` | bitmaps 121 / 119 focus / 122 selected / 120 selected + focus / 123 inactive item (15×15); items stacked with step height + 2; text 11 px after the bitmap, font 175 |
+| `CEdit`, `CNumEdit` | `0x406100` | frame `0x404e80` (outline `#b7b7b7`, inner `#575757`, next `#b7b7b7`, black fill, all with state opacity); text inset 5 px |
+| `CListBox` | `0x406d00` | frame `0x404180`, fill by state (white replaced by `#a0a0a0`), items by virtual method |
+| `CColorSet` | `0x40aed0` | palette bitmap 1 px inward, selected cell outlined `#eeeeee` |
+| `CProgressBar` | `0x40b1f0` | frame `0x436530` + fill `0x4365f0` |
 
-**Text** (`0x4375e0`): posun za znakem = šířka glyfu + `styl[1]` (tlačítka 1 px); výška
-řádku = výška řádku písma + `styl[2]`; znak LF (10) = nový řádek, TAB (9) = 4 mezery,
-kód 1 / 2 na začátku řádku zarovná řádek na střed / vpravo. Příznaky stylu: bity 0–1
-vodorovně (0 vlevo, 1 střed, 2 vpravo), bity 2–3 svisle (0, 4 střed, 8 dole), 0x10 =
-obdélník podle textu. `CStaticText` kreslí (`0x4054d0`, metoda 14) s krytím `0x909090`,
-neaktivní `0x303030`, plným jen s příznakem `+0x94` (Statistika). Paleta textu (`0x403040` → `+0x84`)
-přebarví písmo.
+**Text** (`0x4375e0`): advance after a character = glyph width + `style[1]` (buttons 1 px); line
+height = font line height + `style[2]`; LF (10) = new line, TAB (9) = 4 spaces, code 1 / 2 at line
+start centres / right-aligns the line. Style flags: bits 0–1 horizontal (0 left, 1 centre, 2 right),
+bits 2–3 vertical (0, 4 centre, 8 bottom), 0x10 = rectangle by text. `CStaticText` draws (`0x4054d0`,
+method 14) with opacity `0x909090`, inactive `0x303030`, fully opaque only with flag `+0x94`
+(Statistics). The text palette (`0x403040` → `+0x84`) recolours the font.
 
-Bitmapy UI: `analysis/export_ui_assets.py` → `web/dist/assets/original/ui/` (všech 159 t28,
-režimy 0, 1, 2, 3, 5).
+## Web toolkit (step 3c, done)
 
-## Webový toolkit (krok 3c, hotovo)
+`dist/ui/`: `font.js` (fonts and the text routine; zero glyph width = `[font+0x560]/4`, line height
+`+0x564`), `widgets.js` (StaticText, Button, Radio, NumEdit, Window; state opacity, frame `0x404e80`,
+button and radio bitmaps), `layer.js` (a canvas over the game frame at native resolution, mouse /
+touch / keyboard, a hidden field for the phone's numeric keyboard), `game-type-dialog.js` (the first
+original dialog).
 
-`web/dist/ui/`: `font.js` (písma a textová rutina; nulová šířka glyfu = `[písmo+0x560]/4`,
-výška řádku `+0x564`), `widgets.js` (StaticText, Button, Radio, NumEdit, Window; krytí stavu,
-rámeček `0x404e80`, bitmapy tlačítek a přepínačů), `layer.js` (canvas přes rámec hry v
-nativním rozlišení, myš / dotyk / klávesnice, skryté pole pro číselnou klávesnici telefonu),
-`game-type-dialog.js` (první původní dialog). Menu otevírá „Typ hry“ tlačítkem a ukazuje
-souhrnnou větu startovní obrazovky. Kontrola `web/verify-dialogs.mjs`.
+Not verified: initial focus and Tab order in the original (web: first element, creation order);
+whether the dialog is centred on screen (flag 1 of the `CWindow` constructor, web: centred).
 
-Neověřeno: počáteční fokus a pořadí Tab v originálu (web: první prvek, pořadí vytvoření);
-zda je dialog na obrazovce vycentrovaný (příznak 1 konstruktoru `CWindow`, web: střed).
+## Players: colours, names, keys (step 3d-1, done)
 
-## Hráči: barvy, jména, klávesy (krok 3d-1, hotovo)
+- Player colours: table `0x4aef24` (`0x413200`), the eight swatches of bitmap 19: green (8,141,0),
+  salmon (207,87,87), brown (156,113,87), red (215,51,8), yellow (179,169,0), purple (187,100,187),
+  blue (123,123,192), grey (95,95,95). Palette ramp `0x413220`.
+- Character colour (`0x41e7ee`): human from the profile (`0x412930`), computer random `rand·8>>15`,
+  undead 7.
+- Key sets (DirectInput scan codes, order left/right/up/down/fire/weapon, table `0x4ae5ec`):
+  0 arrows + space + C; 1 S F E D + A + Q; 2 J L I K + M + N; 3 Num 4 6 8 5 + Num 0 + Num 1.
+- Profiles (`0x4ae604` colour, `0x4ae60c` set, `0x4ae614` name) by players on the computer:
+  1 → Bulík (green, 0); 2 → Bulík (green, 1), Uzlík (brown, 3); 3 → Bulík (green, 1), Uzlík (brown, 2),
+  Mazlík (yellow, 3).
+- Web: `dist/players.js`, engine `humans`, up to 3 players on one keyboard.
 
-- Barvy hráčů: tabulka `0x4aef24` (`0x413200`), osm políček bitmapy 19: zelená (8,141,0),
-  lososová (207,87,87), hnědá (156,113,87), červená (215,51,8), žlutá (179,169,0), fialová
-  (187,100,187), modrá (123,123,192), šedá (95,95,95). Rampa palety `0x413220`.
-  Export `analysis/export_player_colors.py` → `sprites/<id>-c<0..7>-sheet.png`.
-- Barva postavy (`0x41e7ee`): člověk z profilu (`0x412930`), počítač náhodně `rand·8>>15`,
-  nemrtvý 7.
-- Sady kláves (scan kódy DirectInput, pořadí vlevo/vpravo/nahoru/dolů/střelba/zbraň,
-  tabulka `0x4ae5ec`): 0 šipky + mezerník + C; 1 S F E D + A + Q; 2 J L I K + M + N;
-  3 Num 4 6 8 5 + Num 0 + Num 1.
-- Profily (`0x4ae604` barva, `0x4ae60c` sada, `0x4ae614` jméno) podle počtu hráčů na
-  počítači: 1 → Bulík (zelená, 0); 2 → Bulík (zelená, 1), Uzlík (hnědá, 3); 3 → Bulík
-  (zelená, 1), Uzlík (hnědá, 2), Mazlík (žlutá, 3).
-- Web: `dist/players.js`, engine `humans`, až 3 hráči na jedné klávesnici.
+## Start hry 2: layout (0x4104f0)
 
-## Start hry 2: rozvržení (0x4104f0)
+Window (230,50)–(760,560). Player column i: x0 = 34 + 130·i. `CColorSet` (bitmap 19, 81×29, 4×2
+colours, cell 21×16, selection outlined `#eeeeee`) at (x0−3, 10) for local players only; preview
+frame bitmap 27 with opacity 0x80 at (x0, 53); animations 180–183 (random direction, player colour)
+at (x0+10, 68); name `CEdit` (font 175) (x0−12, 138)–(x0+88, ·); "Ovládání" (command 210 + i) at
+(x0−3, 170) for local players only. Then "Typ hry" (0xda) at (31, 208) with a summary, "Nastavení"
+(0xec) at (400, 210), "Levely:" (20, 244), `CLevelList` (30, 270)–(230, 440), "Start" (0x8002)
+(40, 466), "Zrušit" (0x8003) (140, 466), hidden "Hra je vytvořena, stiskněte Start..." (40, 495).
 
-Okno (230,50)–(760,560). Sloupec hráče i: x0 = 34 + 130·i. `CColorSet` (bitmapa 19,
-81×29, 4×2 barvy, buňka 21×16, výběr obtažen `#eeeeee`) na (x0−3, 10) jen u místního
-hráče; rámeček náhledu bitmapa 27 s krytím 0x80 na (x0, 53); animace 180–183 (náhodný
-směr, barva hráče) na (x0+10, 68); jméno `CEdit` (písmo 175) (x0−12, 138)–(x0+88, ·);
-„Ovládání“ (příkaz 210 + i) na (x0−3, 170) jen u místního. Dále „Typ hry“ (0xda) na
-(31, 208) se souhrnem, „Nastavení“ (0xec) na (400, 210), „Levely:“ (20, 244),
-`CLevelList` (30, 270)–(230, 440), „Start“ (0x8002) (40, 466), „Zrušit“ (0x8003)
-(140, 466), skryté „Hra je vytvořena, stiskněte Start...“ (40, 495).
+## Settings (step 3d-3, done)
 
-## Další krok (3d-2)
+`CSetupDlg` (`0x40e290`): window 290×140, centred; text "Vyvážení: %d%% hudby a %d%% efektů" (font 174,
+spacing 1) at (25, 20); `CVolume` (`0x40e1b0`, derived from `CScrollBar` `0x408370`) (25, 42)–(270, ·),
+height = arrow height (15); range −50…50 (`0x4051d0`), step 1, page 20; "Ok" (55, 90), "Zrušit" (155, 90).
 
-Obrazovky Start hry 1 a 2 (dialogy + `CColorSet`, `CEdit` jména, seznam levelů, okno
-Ovládání) místo webového formuláře.
+- Text (`0x40e4e0`): music `50 − v` %, effects `50 + v` %.
+- Sound (`0x4223e0` → `0x43a5e0`): two attenuation groups in hundredths of dB; group 1 (effects)
+  `min(v,0)·50`, group 2 (music) `−max(v,0)·50`, so the extreme position is −25 dB. It changes at once
+  while moving (`0x40e5b0`, code 7); Ok saves the value (`+0x2fe`), otherwise the saved one returns
+  (`0x402379`). Default 0 (`0x40a362`).
+- While the slider is pressed, effect 4/30 loops in the effects group (`0x40fb00`), and it stops on
+  release (`0x40e230`).
+- `CScrollBar` draws (`0x403530`) the left arrow, right arrow and thumb, each in three states (0 normal,
+  1 hover `0x403980`, 2 pressed `0x406810`); the track is two horizontal lines in the state opacity
+  colour at `(arrow height − 9)/2` and 6 px lower; thumb at `x0 + arrow width + (v − min)·track/range`,
+  1 px above the lines. Parts: 1 arrow −1 (repeat after 300 ms, `0x4067c0`), 2/4 track ∓20, 3 drag
+  (`0x404fe0`), 5 arrow +1. Bitmaps of the generic horizontal bar 140/136/144, 131/129/133,
+  141/137/145 (table `0x4ae5c4`), `CVolume`'s own 114/113/115 (note), 131/129/133, 126/125/127
+  (speaker) (`0x4aea34`).
+- Not verified: repeat interval after the first 300 ms (web: 300 ms) and keyboard control (web: arrows
+  ±1, PageUp/PageDown ±20).
+- Web: `ui/setup-dialog.js`, `ScrollBar` in `ui/widgets.js`, `settings.balance` in `game-audio.js`.
 
-## Nastavení (krok 3d-3, hotovo)
+## Pause (step 3d-4, done)
 
-`CSetupDlg` (`0x40e290`): okno 290×140 na středu; text „Vyvážení: %d%% hudby a %d%% efektů“
-(písmo 174, mezera 1) na (25, 20); `CVolume` (`0x40e1b0`, odvozený od `CScrollBar` `0x408370`)
-(25, 42)–(270, ·), výška = výška šipky (15); rozsah −50…50 (`0x4051d0`), krok 1, stránka 20;
-„Ok“ (55, 90), „Zrušit“ (155, 90).
+Dialog `0x411df0`: window 306×90, centred, created once with the game view (`0x420423`, `+0x334`). Text
+"Hra je pozastavena" (font 174, spacing 2, style 5) in rectangle (0,12)–(306,35); buttons at y = height
+− 40 = 50: "Pozastav" (0xea) and "Pokračuj" (0xeb) both at x = 15, "Nastavení" (0xec) at 112, "Konec
+hry" (0x8003) at 209. In a network game the window is 200 px taller for the chat (`0x4102d0`).
 
-- Text (`0x40e4e0`): hudba `50 − v` %, efekty `50 + v` %.
-- Zvuk (`0x4223e0` → `0x43a5e0`): dvě skupiny útlumu v setinách dB; skupina 1 (efekty)
-  `min(v,0)·50`, skupina 2 (hudba) `−max(v,0)·50`, tedy krajní poloha −25 dB. Mění se hned při
-  pohybu (`0x40e5b0`, kód 7); Ok hodnotu ukládá (`+0x2fe`), jinak se vrací uložená (`0x402379`).
-  Výchozí 0 (`0x40a362`).
-- Při stisku posuvníku hraje ve smyčce efekt 4/30 ve skupině efektů (`0x40fb00`), po uvolnění
-  se zastaví (`0x40e230`).
-- `CScrollBar` kreslí (`0x403530`) levou šipku, pravou šipku a jezdec, každý ve třech stavech
-  (0 běžný, 1 pod myší `0x403980`, 2 stisknutý `0x406810`); dráha jsou dvě vodorovné čáry barvou
-  krytí stavu na `(výška šipky − 9)/2` a o 6 px níž; jezdec na `x0 + šířka šipky +
-  (v − min)·dráha/rozsah`, o 1 px výš než čáry. Části: 1 šipka −1 (opakování po 300 ms,
-  `0x4067c0`), 2/4 dráha ∓20, 3 tažení (`0x404fe0`), 5 šipka +1. Bitmapy obecného
-  vodorovného posuvníku 140/136/144, 131/129/133, 141/137/145 (tabulka `0x4ae5c4`), `CVolume`
-  vlastní 114/113/115 (nota), 131/129/133, 126/125/127 (reproduktor) (`0x4aea34`).
-- Neověřeno: interval opakování po prvních 300 ms (web: 300 ms) a ovládání klávesnicí (web:
-  šipky ±1, PageUp/PageDown ±20).
-- Web: `ui/setup-dialog.js`, `ScrollBar` ve `ui/widgets.js`, `settings.balance` v
-  `game-audio.js` (násobí webové hlasitosti hudby / efektů a hlášek). Kontrola v
-  `verify-dialogs.mjs`.
+- Esc in game (`0x41687a`, the key belongs to no player) → `0x4124a0(1)`: the local player's pause flag
+  (`+0x174 + 13·player`), a network message, message 0xe9 to the dialog.
+- 0xe9 (`0x40b2f0`): shows whichever of Pozastav / Pokračuj matches the state and moves focus to it. The
+  first paused player sends 0xed → `0x41c290`: stops game timers, animations and sounds, pauses the music
+  and runs the dialog modally; everything resumes on return.
+- Pokračuj or Esc in the dialog (`0x40ac20`) → `0x4124a0(0)`; when nobody is paused any more, 0x80ca
+  closes the dialog. Nastavení → `0x40ac50` (CSetupDlg; pauses if not yet paused).
+- Konec hry → 0x80cd → `0x41d5f0`: stops game timers, plays the round end (effect 17) and after it fades
+  the game view ends with code 0x80cd. There is no confirmation.
+- Web: `ui/pause-dialog.js`; Esc, the touch pause button and loss of window focus open the pause (pause
+  music 331 through `bulanci:pause`), Konec hry calls `game.finish()`. The web "Menu" button stays as a
+  shortcut to the menu.
 
-## Pauza (krok 3d-4, hotovo)
+## Statistics (step 3d-5, done)
 
-Dialog `0x411df0`: okno 306×90 na středu, vzniká jednou s pohledem hry (`0x420423`, `+0x334`).
-Text „Hra je pozastavena“ (písmo 174, mezera 2, styl 5) v obdélníku (0,12)–(306,35); tlačítka
-na y = výška − 40 = 50: „Pozastav“ (0xea) a „Pokračuj“ (0xeb) obě na x = 15, „Nastavení“ (0xec)
-na 112, „Konec hry“ (0x8003) na 209. V síťové hře je okno o 200 px vyšší kvůli chatu (`0x4102d0`).
+`CScore` (`0x411010`, window 800×600) is run modally by `0x401c66` after the game view ends; Esc or
+Enter closes it (`0x40abe0` → 0x8003). The game view first plays the round-end sound 17 (`0x41d5f0`,
+0.72 s). The screen plays sample 4/29 in the music group (`0x411add`).
 
-- Esc ve hře (`0x41687a`, klávesa nepatří hráči) → `0x4124a0(1)`: příznak pauzy místního hráče
-  (`+0x174 + 13·hráč`), síťová zpráva, zpráva 0xe9 dialogu.
-- 0xe9 (`0x40b2f0`): ukáže to z dvojice Pozastav / Pokračuj, které odpovídá stavu, a přesune
-  na něj fokus. První pozastavený hráč pošle 0xed → `0x41c290`: zastaví časovače, animace a
-  zvuky hry, pozastaví hudbu a spustí dialog modálně; po návratu vše obnoví.
-- Pokračuj nebo Esc v dialogu (`0x40ac20`) → `0x4124a0(0)`; když už nikdo nestojí, 0x80ca
-  dialog zavře. Nastavení → `0x40ac50` (CSetupDlg; pozastaví, pokud ještě nebylo).
-- Konec hry → 0x80cd → `0x41d5f0`: zastaví časovače hry, zahraje konec kola (efekt 17) a po jeho
-  doznění pohled hry skončí s kódem 0x80cd. Potvrzení se neptá.
-- Web: `ui/pause-dialog.js`; Esc, dotykové tlačítko pauzy a ztráta fokusu okna otevřou pauzu
-  (hudba pauzy 331 přes `bulanci:pause`), Konec hry volá `game.finish()`. Webové tlačítko
-  „Menu“ zůstává jako zkratka do menu. Kontrola ve `verify-dialogs.mjs` a `verify-mobile.mjs`.
+- Background bitmap 164; title animation 303 at (120, 50), played once and held on the last frame
+  (`0x4391e0`: bit 1 play, bit 2 loop).
+- Players (count `+0xd8`, humans only) sorted with CRT `qsort` (`0x4483b0`) by final score `0x4126e0`
+  descending (`0x40abd0`). Up to 8 elements this is shortsort `0x448320` (first maximum to the end,
+  unstable); the web imitates it exactly.
+- Position i: x = 136 / 279 / 423 / 567 (`0x4ae788`); place p starts at 0 and grows when the next
+  player has a lower score (a tie = the same place). Column bitmap `0x4ae708[i][p]` (150; 151/152;
+  153–155; 156–159) at (x, 229); bulánek animation `0x4ae748[p]` + random direction 0–3 (180, 184, 188,
+  192: the worse the place, the more bandaged), player colour, at (x+33, y) with y = 240 / 270 / 300 /
+  330 (`0x4ae798`); name (x, y−28)–(x+118, y−10); "Zabil: %dx" y 471–486, "Mrtev: %dx" y 485–500. All
+  font 175, style 5, spacing 1, fully opaque.
+- Who was killed: for slots 0–3 with a count > 0 (record `+0xea + 4·victim`) character 0x1F in the
+  victim's colour (grey `0x5f5f5f` as `0x2f2f2f`) at x−15 and the count at x+5, from y = 452 upward by
+  14 px.
+- Alone (training): the result goes to the level table (`0x414280` → `0x409b10`): add, sort by kills −
+  deaths (`0x408fd0`), keep 6. An empty level gets the default table (`0x409620`): Žezlík 30, Kapslík
+  25, Čmelík 20, Uhlík 15, Terčík 10, Cvalík 5 kills, always 10 deaths. If the result drops out, the
+  bulánek is at its saddest (animation 192). Table: bitmap 149 with opacity 0x80 at (330, 190), header
+  Pořadí / Jméno / Zabil / Mrtev / Rozdíl (texts 0x64, 0x66–0x69) in columns `0x4aeab0` + 330, y
+  191–214, rows of 26 px; rank grows when the difference changes; the first row matching the result is
+  fully lit (`0x409080`), the others dimmed.
+- Web: `ui/score-screen.js`, tables in `localStorage` (`bulanci.records`; the original saves them to a
+  file, `0x409cd0`), click / tap also closes it (phones have no Enter).
 
-## Statistika (krok 3d-5, hotovo)
+## Loading and Konec (step 3d-6, done)
 
-`CScore` (`0x411010`, okno 800×600) spouští modálně `0x401c66` po skončení pohledu hry; Esc
-nebo Enter ji zavře (`0x40abe0` → 0x8003). Pohled hry předtím dohraje zvuk konce kola 17
-(`0x41d5f0`, 0,72 s). Obrazovka hraje vzorek 4/29 ve skupině hudby (`0x411add`).
+- `CLoadingLevel` (`0x40dfb0`): window 250×75, centred, "Načítá se level..." (font 174, spacing 2) at
+  (20, 20), `CProgressBar` (20, 50)–(230, 55). Drawing `0x40b1f0`: 1 px black outline (`0x436530`), fill
+  `#a0a0a0` from the left by value / maximum (`0x4365f0`). The game view (`0x41d3e1`) moves the bar by
+  level-file bytes read, per 16 kB; the web by loaded layer images (`app.js` `loadLevel`).
+- `CExitDlg` (`0x411b50`): menu Konec (`0x425970`, command 0xcb) shows illustration 317, plays sample 25
+  and lays window (221, 24)–(762, 569) on the menu picture (not centred): animation 305
+  ("www.bulanci.cz") at (194, 22) and 306 ("www.sleepteam.com") at (313, 282), both looping (`0x419940`
+  flag 3); text 0x138 (SleepTeam Labs farewell, font 175, spacing 2) at (40, 72); "Konec hry" (0x8004)
+  at (49, 492) quits the program; the web ends the round and returns to Start instead.
+- Web: `ui/loading-dialog.js`, `ui/exit-screen.js`, `ProgressBar` in `ui/widgets.js`.
 
-- Pozadí bitmapa 164; titulek animace 303 na (120, 50), přehraje se jednou a stojí na
-  posledním snímku (`0x4391e0`: bit 1 hraj, bit 2 smyčka).
-- Hráči (počet `+0xd8`, jen lidé) řazení CRT `qsort` (`0x4483b0`) podle konečného skóre
-  `0x4126e0` sestupně (`0x40abd0`). Do 8 prvků je to shortsort `0x448320` (první maximum
-  na konec, nestabilní) — web ho napodobuje přesně.
-- Pozice i: x = 136 / 279 / 423 / 567 (`0x4ae788`); místo p začíná 0 a roste, když má další
-  hráč nižší skóre (shoda = stejné místo). Sloup bitmapa `0x4ae708[i][p]` (150; 151/152;
-  153–155; 156–159) na (x, 229); bulánek animace `0x4ae748[p]` + náhodný směr 0–3 (180, 184,
-  188, 192 — čím horší místo, tím obvázanější), barva hráče, na (x+33, y) s y = 240 / 270 /
-  300 / 330 (`0x4ae798`); jméno (x, y−28)–(x+118, y−10); „Zabil: %dx“ y 471–486,
-  „Mrtev: %dx“ y 485–500. Vše písmo 175, styl 5, mezera 1, plné krytí.
-- Koho zabil: pro sloty 0–3 s počtem > 0 (záznam `+0xea + 4·oběť`) znak 0x1F v barvě oběti
-  (šedá `0x5f5f5f` jako `0x2f2f2f`) na x−15 a počet na x+5, od y = 452 nahoru po 14 px.
-- Sám (trénink): výsledek jde do tabulky levelu (`0x414280` → `0x409b10`): přidat, seřadit
-  podle zabil − mrtev (`0x408fd0`), nechat 6. Prázdný level dostane výchozí tabulku
-  (`0x409620`): Žezlík 30, Kapslík 25, Čmelík 20, Uhlík 15, Terčík 10, Cvalík 5 zabití, vždy
-  10 smrtí. Když výsledek vypadne, bulánek je nejsmutnější (animace 192). Tabulka: bitmapa 149
-  s krytím 0x80 na (330, 190), záhlaví Pořadí / Jméno / Zabil / Mrtev / Rozdíl (texty 0x64,
-  0x66–0x69) ve sloupcích `0x4aeab0` + 330, y 191–214, řádky po 26 px; pořadí roste, když se
-  změní rozdíl; plně svítí první řádek shodný s výsledkem (`0x409080`), ostatní tlumeně.
-- Web: `ui/score-screen.js`, tabulky v `localStorage` (`bulanci.records`, originál je ukládá
-  do souboru `0x409cd0`), klik / ťuknutí zavírá také (telefon nemá Enter). Barevné varianty
-  184–195 doplnil `export_player_colors.py`. Kontrola ve `verify-dialogs.mjs`
-  (`web-score-screen.png`, `web-score-training.png`) a `test/score.test.mjs`.
-- Vrstva dialogů se nově vepisuje do rámu hry (dřív zůstávala 800 px i ve větším okně) a
-  prázdná plocha trvalé obrazovky propouští klik na stránku.
+## Main menu scene (step 3d-7, done)
 
-## Načítání a Konec (krok 3d-6, hotovo)
+`0x4265e0` is the `CMenu` constructor (called by handler 0xcc in `0x4024a0`), not a separate screen.
+Window 800×600, background 315 (`assets/menu.jpg`), buttons 0xc9/0xca/0xcb at (35, 37/121/205), labels
+at (100, 55/139/223). In addition:
 
-- `CLoadingLevel` (`0x40dfb0`): okno 250×75 na středu, „Načítá se level...“ (písmo 174,
-  mezera 2) na (20, 20), `CProgressBar` (20, 50)–(230, 55). Kreslení `0x40b1f0`: černý obrys
-  1 px (`0x436530`), uvnitř výplň `#a0a0a0` zleva podle hodnota / maximum (`0x4365f0`). Pohled
-  hry (`0x41d3e1`) posouvá pruh podle přečtených bajtů souboru levelu po 16 kB; web podle
-  načtených obrázků vrstev levelu (`app.js` `loadLevel`).
-- `CExitDlg` (`0x411b50`): menu Konec (`0x425970`, příkaz 0xcb) ukáže ilustraci 317, zahraje
-  vzorek 25 a na obrázek menu položí okno (221, 24)–(762, 569) (necentrované): animace 305
-  („www.bulanci.cz“) na (194, 22) a 306 („www.sleepteam.com“) na (313, 282), obě ve smyčce
-  (`0x419940` příznak 3); text 0x138 (rozloučení SleepTeam Labs, písmo 175, mezera 2) na
-  (40, 72); „Konec hry“ (0x8004) na (49, 492) ukončí program — web místo toho ukončí kolo a
-  vrátí se na Start. Nahrazuje webový panel „Ukončit hru? Ano / Ne“.
-- Web: `ui/loading-dialog.js`, `ui/exit-screen.js`, `ProgressBar` ve `ui/widgets.js`; kontrola
-  ve `verify-menu-fullscreen.mjs` (`web-exit-screen.png`).
+- **Day / night** (`0x425400`, only when the menu is created): `GetLocalTime`, hour = packed time >> 25;
+  night when unsigned `(hour − 6) > 15`, i.e. 22:00–5:59. Night (`0x4252f0`): music 330 and bitmap 313
+  (a brighter SleepTeam "moon", 190×166) at (610, 0); day: music 329, 313 hidden.
+- **Menu music** (`0x4252a0`, menu timer 120 ms `0x424080`): starts at volume 70 and each tick adds 1
+  up to 100 (3.6 s); then the timer stops and the scratches switch on. Message 0xf0 (game starting)
+  lowers it by 1 back to 70 and pauses the music, 0xf1 (return to menu) raises it again. Volume
+  conversion (`0x43a0d0` → `0x43a060`): DirectSound receives `(attenuation + 10000) · volume / 100 −
+  10000` hundredths of dB, where attenuation is the balance value from table `0x4b8370` (filled at run
+  time); 70 is thus −30 dB and the rise is linear in dB. Web: `menuMusicGain` and `MENU_MUSIC` in
+  `game-audio.js`, ticks count only with a really playing track (autoplay lock). Simplification: on game
+  start the web pauses the menu track at once (the original lowers it for 3.6 s under loading); on
+  return to the menu it continues from 70, like 0xf1.
+- **CPoemScroller** (`0x4262c0`): rectangle (10, 384)–(215, 550), font 175, colour `#b0b0b0`, spacing 1,
+  line spacing cell height + 1. The texts are all resources of type 2043 (0x7fb, 13 poems): `uint32
+  type, uint32 character count, UTF-16`. A line starting with code 1 is centred, with code 2 right-aligned
+  (author; trailing spaces inset it from the edge), tab = 4 spaces (`0x4375e0`). `0x425df0`: random poem
+  `rand()*13>>15`, text set into a bitmap as wide as the longest line, centred horizontally in the window
+  (`0x4240f0`); starts below the window (position = window height 166). Timer 120 ms from creation time
+  + 3000 ms; a tick (`0x426030`) moves 1 px up, and when the text has left entirely (position = −height)
+  it picks the next one. The top and bottom 40 rows of the window draw through opacity masks 6, 12 … 240
+  (top) and 250 … 16 (bottom).
+- **"Verze: 1.80"**: `CStaticText` font 176, spacing 1 at (230, 575).
+- **CRuch** ×4 (`0x423c20`): a 1 px vertical line over the full height, colour `#3f3f3f` (`0x423e60`),
+  random x 0–799. Hidden it waits `rand(0..4000)` ms, then shows for 100 ms, hides and jumps to a new
+  random x (`0x423de0`). Timers run only with an active menu (`0x423f70`).
+- Web: `ui/menu-scene.js` (a canvas under the buttons, night `menu-night.jpg`). Scrolling stops while the
+  menu is hidden and continues on return (the original does not destroy the menu during a game; whether
+  its timer keeps running is not verified).
 
-## Hlavní menu — scéna (krok 3d-7, hotovo)
+## Message and help (step 3d-8)
 
-`0x4265e0` je konstruktor `CMenu` (volá ho obsluha 0xcc v `0x4024a0`), ne samostatná obrazovka.
-Okno 800×600, pozadí 315 (`assets/menu.jpg`), tlačítka 0xc9/0xca/0xcb na (35, 37/121/205), popisky
-na (100, 55/139/223). Navíc:
+- **CMsgDialog** (`0x40be80`, modal through `0x40f2c0`): text in font 174 with spacing 2 at (30, 10),
+  window 60 px wider and taller than the text, centred on screen; one button centred horizontally at y =
+  text height + 20. Kind 0 = "Ok" (0x8002), kind 1 = "Zrušit" (0x8003), tables `0x4ae6f0` (texts 29/30) and
+  `0x4ae6f8`. Callers: exception error messages (`0x401a9d`, `0x41d5cb`), the network waiting message
+  (`0x4137b0`) and the only local-game one: **Start in Start hry 2** (`CStartGame2` vtable `0x480d4c`, slot
+  13 = `0x40f610`, command 0x8002): each player on this computer (from `+0x36`, count `+0x37`) is compared
+  with all players (`+0xd8`, backwards, exact and case-sensitive `0x42d3f0`); the first match shows
+  'Jméno "%s" je již použito.' (text 0xdc) and the game does not start.
+  Web: `ui/msg-dialog.js`, `start-game.js`.
+- **Help** (`CHelpDlg`, ctor `0x421e40`, command handler `0x421dd0` switches pages 0xe5–0xe8 through
+  `0x421c10`): created only by factory `0x422280`, which static initialiser `0x47bea0` registers under
+  class number 0x818 (`0x42e910`). Only deserialisation creates objects by number (`0x42ef00`, called from
+  stream reading `0x42fbe5`, `0x42fd96` and from resources `0x434791`), and no resource or other code uses
+  number 0x818. In this version of the game help is unreachable, so the web does not have it.
 
-- **Den / noc** (`0x425400`, jen při vytvoření menu): `GetLocalTime`, hodina = zabalený čas >> 25;
-  noc, když `(hodina − 6) > 15` bez znaménka, tj. 22:00–5:59. Noc (`0x4252f0`): hudba 330 a bitmapa
-  313 (jasnější „měsíc“ SleepTeam, 190×166) na (610, 0); den: hudba 329, 313 skrytá. Web dřív
-  hádal hranici 20:00 — opraveno, `isMenuNight` v `game-audio.js`.
-- **Hudba menu** (`0x4252a0`, časovač menu 120 ms `0x424080`): začíná na hlasitosti 70 a každý tik
-  přidá 1 až na 100 (3,6 s); pak časovač stojí a zapnou se škrábance. Zpráva 0xf0 (hra začíná)
-  stahuje po 1 zpět na 70 a hudbu pozastaví, 0xf1 (návrat do menu) znovu zesiluje. Web zatím
-  hlasitost nabíhá stejně (hotovo, viz níže), škrábance startují po stejných 3,6 s.
-  Převod hlasitosti (`0x43a0d0` → `0x43a060`): DirectSound dostane
-  `(útlum + 10000) · hlasitost / 100 − 10000` setin dB, kde útlum je hodnota balance z tabulky
-  `0x4b8370` (plněná za běhu); 70 je tedy −30 dB a náběh je lineární v dB. Web: `menuMusicGain`
-  a `MENU_MUSIC` v `game-audio.js`, tiky se počítají jen při skutečně hrající stopě (zámek
-  autoplay). Zjednodušení: při startu hry web stopu menu pozastaví hned (originál ji 3,6 s stahuje
-  pod načítáním); po návratu do menu pokračuje od 70 jako 0xf1. Kontrola `verify-audio.mjs`,
-  `test/menu-music.test.mjs`.
-- **CPoemScroller** (`0x4262c0`): obdélník (10, 384)–(215, 550), písmo 175, barva `#b0b0b0`,
-  mezera 1, řádkování výška buňky + 1. Texty jsou všechny zdroje typu 2043 (0x7fb, 13 básní,
-  `analysis/export_poems.py` → `poems.json`): `uint32 typ, uint32 počet znaků, UTF-16`. Řádek
-  začínající kódem 1 se centruje, kódem 2 zarovná vpravo (autor, mezery na konci odsazují od
-  kraje), tabulátor = 4 mezery (`0x4375e0`). `0x425df0`: náhodná báseň `rand()*13>>15`, text
-  vysázený do bitmapy šířky nejdelšího řádku, ta je v okně vodorovně vystředěná (`0x4240f0`);
-  start pod oknem (pozice = výška okna 166). Časovač 120 ms od času vytvoření + 3000 ms; tik
-  (`0x426030`) posune o 1 px nahoru, a když text celý vyjede (pozice = −výška), vybere další.
-  Horních a dolních 40 řádků okna kreslí přes masky krytí 6, 12 … 240 (nahoře) a 250 … 16 (dole).
-- **„Verze: 1.80“**: `CStaticText` písmo 176, mezera 1 na (230, 575).
-- **CRuch** ×4 (`0x423c20`): svislá čára 1 px přes celou výšku, barva `#3f3f3f` (`0x423e60`), náhodné
-  x 0–799. Skrytá čeká `rand(0..4000)` ms, pak se na 100 ms ukáže, skryje se a přeskočí na nové
-  náhodné x (`0x423de0`). Časovače běží jen při aktivním menu (`0x423f70`).
-- Web: `ui/menu-scene.js` (plátno pod tlačítky, noční `menu-night.jpg`), kontrola
-  `verify-menu-scene.mjs` (`web-menu-scene.png`) a `test/menu-scene.test.mjs`. Rolování se při
-  skrytém menu zastaví a po návratu pokračuje (originál menu během hry neruší; zda jeho časovač
-  běží dál, není ověřeno).
+## Historie (CHistoryDlg, 29 Oct 2026)
 
-## Zpráva a nápověda (krok 3d-8)
+Window (231,36)–(762,569) on picture 317. Constructor `0x4231d0` collects resources of class 0x802 (307–309,
+`t2050`) as pages. A page is a program of the page VM: the same expression grammar as level scripts, extended
+opcodes 0x2d–0x34 from table `0x4af7ac` (registration `0x42273a`): 0x2d label (x, y, text, letter spacing,
+font; `0x406a50`), 0x2e text block, 0x2f bitmap, 0x30 text palette, 0x31 pair, 0x32 style byte, 0x33 insert,
+0x34 photo with a film (`0x4236a0`). Page switch `0x422f70` runs entry 0 with argument 1. `CIcon` icons
+0xe5–0xe8 at (39|56|72|91, 480): first / previous / next / last (`0x423130`), inactive at the ends (bit 4,
+opacity 0x80). `CIcon` drawing `0x403e40`: image 0, 1 on hover, 2 when pressed (bitmaps 56/55/57, 59/58/60,
+62/61/63, 65/64/66).
 
-- **CMsgDialog** (`0x40be80`, modálně přes `0x40f2c0`): text písmem 174 s mezerou 2 na (30, 10),
-  okno o 60 px širší i vyšší než text, na středu obrazovky; jedno tlačítko vodorovně na středu
-  na y = výška textu + 20. Druh 0 = „Ok“ (0x8002), druh 1 = „Zrušit“ (0x8003), tabulky
-  `0x4ae6f0` (texty 29/30) a `0x4ae6f8`. Volající: chybové hlášky výjimek (`0x401a9d`,
-  `0x41d5cb`), síťové „Čekám na zbytek hráčů...“ (`0x4137b0`) a jediné pro místní hru:
-  **Start ve Start hry 2** (`CStartGame2` vtable `0x480d4c`, slot 13 = `0x40f610`, příkaz 0x8002):
-  každého hráče na tomto počítači (od `+0x36`, počet `+0x37`) porovná se všemi hráči (`+0xd8`,
-  odzadu, přesně a s rozlišením velikosti písmen `0x42d3f0`); při první shodě ukáže
-  'Jméno "%s" je již použito.' (text 0xdc) a hra nezačne.
-  Web: `ui/msg-dialog.js`, `start-game.js`; kontrola `verify-msg-dialog.mjs`
-  (`web-msg-dialog.png`) a `test/msg-dialog.test.mjs`.
-- **Nápověda** (`CHelpDlg`, ctor `0x421e40`, obsluha příkazů `0x421dd0` přepíná stránky
-  0xe5–0xe8 přes `0x421c10`): vzniká jen tovární funkcí `0x422280`, kterou statický
-  inicializátor `0x47bea0` registruje pod číslem třídy 0x818 (`0x42e910`). Objekty podle čísla
-  vytváří jen deserializace (`0x42ef00`, volaná z čtení proudu `0x42fbe5`, `0x42fd96` a ze
-  zdrojů `0x434791`), a žádný zdroj ani jiný kód číslo 0x818 nepoužívá — v této verzi hry je
-  nápověda nedosažitelná, web ji proto nemá.
+Photos 116, 69, 54, 77 play a `t76` film on click (12291, 12289, 12295, 12293): header (type 76, size,
+166×153/154, ?, length ms, frame count, audio bytes, channels, bits, rate), then alternating JPEG frames and
+PCM blocks. A second click stops the film (`0x422630`), the end (event 1, `0x422860`) restores the photo. The
+even preview resources (12288…) are not in the EXE as previews; the preview is the photo (`0x4237b0`). Film
+start and end send the menu messages 0xf0/0xf1 → `0x424010`: menu music stops and then restarts.
 
-## Historie (CHistoryDlg, 29. 10. 2026)
+Web: `ui/history-dialog.js`, data `assets/original/history/pages.json`, films (frame atlas + WAV).
 
-Okno (231,36)–(762,569) na obrázku 317. Konstruktor `0x4231d0` posbírá resources třídy 0x802 (307–309, `t2050`) jako stránky. Stránka je program stránkového VM: stejná gramatika výrazů jako skripty levelů, rozšířené opcody 0x2d–0x34 z tabulky `0x4af7ac` (registrace `0x42273a`): 0x2d popisek (x, y, text, mezery mezi písmeny, písmo; `0x406a50`), 0x2e textový blok, 0x2f bitmapa, 0x30 paleta textu, 0x31 dvojice, 0x32 bajt stylu, 0x33 vložit, 0x34 fotka s filmem (`0x4236a0`). Přepnutí stránky `0x422f70` spustí vstup 0 s argumentem 1. Ikony `CIcon` 0xe5–0xe8 na (39|56|72|91, 480): první / předchozí / další / poslední (`0x423130`), na krajích neaktivní (bit 4, krytí 0x80). Kreslení `CIcon` `0x403e40`: obrázek 0, při najetí 1, při stisku 2 (bitmapy 56/55/57, 59/58/60, 62/61/63, 65/64/66).
+## Main menu buttons (CMenu, 29 Oct 2026)
 
-Fotky 116, 69, 54, 77 přehrají po kliknutí film `t76` (12291, 12289, 12295, 12293): hlavička (typ 76, velikost, 166×153/154, ?, délka ms, počet snímků, bajty zvuku, kanály, bity, frekvence), pak střídavě snímek JPEG a blok PCM. Druhé kliknutí film zastaví (`0x422630`), konec (událost 1, `0x422860`) vrátí fotku. Sudé resources náhledu (12288…) v EXE nejsou, náhledem je fotka (`0x4237b0`). Start a konec filmu pošlou menu zprávy 0xf0/0xf1 → `0x424010`: hudba menu se zastaví a pak znovu spustí.
-
-Web: `ui/history-dialog.js`; data `analysis/decode_history_pages.py` → `assets/original/history/pages.json`, filmy `analysis/export_history_films.py` (atlas snímků + WAV). Dřívější panel s texty vytaženými z bajtů (rozsypané řetězce, duplicity) je odstraněný.
-
-## Tlačítka hlavního menu (CMenu, 29. 10. 2026)
-
-`0x4265e0` vytvoří tři tlačítka třídy `0x424bc0` na (35,37), (35,121), (35,205) s příkazy 0xc9–0xcb a ke každému dvě bitmapy popisku na (100,55/139/223): normální a aktivní (147/148, 67/68, 75/76, tabulka `0x4af90c`). Tlačítko je animace se dvěma klipy 212 a 213 (8 snímků, 568 ms), na začátku klip 212 snímek 0. Najetí (`0x423f20`) u nevybraného tlačítka přehraje 212 jednou se vzorkem 0 globální banky a kulička zůstane rozsvícená; odjetí (`0x423ef0`) přehraje 213. Obojí se spustí jen tehdy, když animace stojí. Výběr (`0x424d30`) přehraje 212, pokud kulička ještě nesvítí, a zprávou 0xc8 nechá dříve vybrané tlačítko přehrát 213 (`0x424dc0`). Popisky se přepínají jen výběrem: obsluha příkazu vrátí předchozí (`0x423a00`), skryje normální a ukáže aktivní popisek. Konstruktor vybere výchozí tlačítko (`0x426c95`). Klávesy (`0x424fa0`): S/H/K vyberou Start/Historii/Konec, X ukončí program (web vynechává). Web dříve kuličku točil ve smyčce a popisek měnil i při najetí.
-
+`0x4265e0` creates three buttons of class `0x424bc0` at (35,37), (35,121), (35,205) with commands 0xc9–0xcb,
+and for each two label bitmaps at (100,55/139/223): normal and active (147/148, 67/68, 75/76, table
+`0x4af90c`). A button is an animation with two clips 212 and 213 (8 frames, 568 ms), starting on clip 212 frame
+0. Hover (`0x423f20`) on an unselected button plays 212 once with sample 0 of the global bank and the orb stays
+lit; leaving (`0x423ef0`) plays 213. Both start only when the animation is still. Selection (`0x424d30`) plays
+212 if the orb is not lit yet and message 0xc8 makes the previously selected button play 213 (`0x424dc0`).
+Labels switch only on selection: the command handler restores the previous one (`0x423a00`), hides the normal
+label and shows the active one. The constructor selects the default button (`0x426c95`). Keys (`0x424fa0`):
+S/H/K select Start/Historie/Konec, X quits the program (the web omits it).

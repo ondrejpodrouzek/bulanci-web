@@ -1,121 +1,116 @@
-# Na dobrou noc, miny a samopal — obnovené chování
+# Na dobrou noc, mines and the SMG — recovered behaviour
 
-28. 10. 2026. Rozbor dodaného původního EXE a skriptu320. Nejde o odhad podle Androidu.
+28 Oct 2026. Analysis of the supplied original EXE and script 320. This is not a guess based on the Android port.
 
-## Králík a ostatní animované detaily
+## The rabbit and other animated details
 
-Skript losuje právě jednu ze dvou původních sestav objektů. Kláda a králík mohou chybět
-s pravděpodobností1/8, kameny s myší1/10, keř se zvířetem1/8 a vedlejší keř1/7. Souřadnice,
-vrstvy a jednotlivé kolizní obdélníky pocházejí z původního skriptu, ne z celé velikosti bitmapy.
+The script draws exactly one of two original object layouts. The log and rabbit can be missing with
+probability 1/8, the stones with the mouse 1/10, the bush with the animal 1/8 and the side bush 1/7.
+Coordinates, layers and individual collision rectangles come from the original script, not from
+the full bitmap size.
 
-Králík má čtyři klidové varianty **223,224,225,227**. Po dokončení každé skript vybere
-náhodnou variantu0–3 (`320:0x689`). Web už neopakuje jen krátké mrknutí223. Původní snímky
-mají71ms rozestupy. Zásah lokálního obdélníku `[79,50,112,80]` vůči kládě nastaví death bit2,
-vypne callback zásahu a spustí **226** (`320:0xa15`). Smrt se přehraje jednou a zůstane
-na posledním snímku19. Králík v téže hře neožije a skript neuděluje bod za hráčský kill.
+The rabbit has four idle variants **223, 224, 225, 227**. After each one the script picks a random
+variant 0–3 (`320:0x689`). The original frames are 71 ms apart. A hit on the local rectangle
+`[79,50,112,80]` relative to the log sets death bit 2, disables the hit callback and starts **226**
+(`320:0xa15`). The death plays once and stays on last frame 19. The rabbit does not come back in the
+same game and the script awards no point for a player's kill.
 
-Keřové zvíře stejným způsobem střídá239,240,241,243 a při smrti používá242. Stav1 přehrává
-zvuk banky1/sample0. Dekorace muchomůrky používá228–230 včetně původních posunů chunk10,
-vratného ring snímku a vrstvy2. Mezera mezi horní kolizí a základnou muchomůrky je zachovaná:
-hráč uvnitř může střílet okénkem vlevo i vpravo, střecha a spodní část střely zastaví.
+The bush animal alternates 239, 240, 241, 243 the same way and uses 242 on death. State 1 plays bank
+1 / sample 0. The mushroom decoration uses 228–230 including original chunk 10 offsets, the returning
+ring frame and layer 2. The gap between the top collision and the mushroom base is preserved: a
+player inside can shoot through the window left and right; the roof and lower part stop shots.
 
-## Myš za kamenem
+## The mouse behind the stone
 
-Přeneseny jsou stavy a přechody ze skriptu `320:0x6d5..0x93e`, nikoli střelba na nejbližšího
-hráče v kruhu300px:
+States and transitions come from script `320:0x6d5..0x93e`:
 
-| Směr | Vylézání | Schování | Střelba | Smrt |
+| Direction | Climbing out | Hiding | Firing | Death |
 |---|---|---|---|---|
-| Vpravo | 231 / stav0 | 232 / stav1 | 233 / stav2 | 234 / stav3 |
-| Vlevo | 235 / stav4 | 236 / stav5 | 237 / stav6 | 238 / stav7 |
+| Right | 231 / state 0 | 232 / state 1 | 233 / state 2 | 234 / state 3 |
+| Left | 235 / state 4 | 236 / state 5 | 237 / state 6 | 238 / state 7 |
 
-Na začátku běží pravé vylézání. Po vylezení myš vystřelí pouze tehdy, je-li hráč v příslušném
-vodorovném senzoru. Jinak se schová. Střela vznikne při přechodu do střeleckého stavu,
-ne až po jeho skončení. Ústí má původní absolutní offset `(65,10)` vpravo a `(-10,10)` vlevo
-vůči kameni, ID vlastníka9, základní typ střely; žádné posouvání střely skrz kulisu.
+Climbing out to the right runs first. Once out, the mouse fires only if a player is in the matching
+horizontal sensor; otherwise it hides. The shot is created on the transition into the firing state, not
+after it ends. The muzzle has the original absolute offset `(65,10)` right and `(-10,10)` left relative
+to the stone, owner ID 9, basic shot type.
 
-Po střelbě se vždy schová. Teprve po dokončení schování nastaví připravenost a časovač
-náhodných **3 až15 celých sekund**. Časovač vybere stranu0/1. Nový vstup hráče do bočního
-senzoru má **1/4 šanci** na vylézání, pokud je připravená. Odešel-li hráč dříve, než myš
-vylezla, myš se zase schová. Senzory používají původní kolizní obdélník hráče, ne jeho střed.
+After firing it always hides. Only when hiding finishes does it set readiness and a timer of a random
+**3 to 15 whole seconds**. The timer picks side 0/1. A new player entering a side sensor has a **1/4
+chance** of making it climb out, if ready. If the player left before the mouse was out, it hides again.
+Sensors use the player's original collision rectangle, not their centre.
 
-Zranitelnost `[36,0,45,14]` vůči kameni má callback10 jen ve stavech2/6. Při schování,
-vylézání nebo po smrti je ID255 a střela pouze narazí do kulisy. Smrt přepne stav2→3 či6→7,
-přehraje příslušnou animaci a trvale vypne AI (`320:0xa58`).
+Vulnerability `[36,0,45,14]` relative to the stone has callback 10 only in states 2/6. While hiding,
+climbing or after death the ID is 255 and a shot just hits the scenery. Death switches state 2→3 or
+6→7, plays the animation and disables the AI for good (`320:0xa58`).
 
-Původní zvuky banky1: králík smrt1, keřové zvíře smrt2, myš smrt3, myš střelba4.
+Original sounds of bank 1: rabbit death 1, bush animal death 2, mouse death 3, mouse firing 4.
 
-## Důležitá oprava konce animací
+## An important fix to animation ends
 
-Číslo duration v hlavičce není u jednorázové animace totožné s okamžikem zastavení.
-`0x439b90` nejprve načte další blok přes`0x4399b0`, po posledním běžném bloku zabalí
-čítač na0 a při stop-frame0/loop=false okamžitě zastaví přes`0x439840`.
+The duration in the header is not the moment a one-shot animation stops. `0x439b90` first loads the
+next block through `0x4399b0`, after the last regular block wraps the counter to 0 and with stop-frame
+0 / loop=false stops at once through `0x439840`.
 
-| Animace | Hlavička | Poslední běžný snímek / zastavení |
+| Animation | Header | Last regular frame / stop |
 |---|---:|---:|
-| Krátké mrknutí223 | 497ms /7snímků | 426ms |
-| Králík225/227/226 | 1420ms /20snímků | 1349ms |
-| Myš vylézá/schovává/umírá | 426ms /6snímků | 355ms |
-| Myš střílí | 639ms /9snímků | 568ms |
-| Samopal | 639ms /9snímků | 568ms |
-| Pokládání miny | 355ms /5snímků | 284ms |
-| Mina177 na zemi | 1136ms /16snímků | 1065ms |
-| Výbuch178 | 781ms /11snímků | 710ms |
+| Short blink 223 | 497 ms / 7 frames | 426 ms |
+| Rabbit 225/227/226 | 1420 ms / 20 frames | 1349 ms |
+| Mouse climbs/hides/dies | 426 ms / 6 frames | 355 ms |
+| Mouse fires | 639 ms / 9 frames | 568 ms |
+| SMG | 639 ms / 9 frames | 568 ms |
+| Placing a mine | 355 ms / 5 frames | 284 ms |
+| Mine 177 on the ground | 1136 ms / 16 frames | 1065 ms |
+| Explosion 178 | 781 ms / 11 frames | 710 ms |
 
-Muchomůrková dekorace má výslovně nastavený stop-frame1 (`native42`), takže dohraje i ring
-blok v čase nominální duration. Tento rozdíl je v nové implementaci zachovaný.
+The mushroom decoration explicitly sets stop-frame 1 (`native42`), so it also plays the ring block at
+the nominal duration. This difference is preserved in the new implementation.
 
-## Miny
+## Mines
 
-- Sebrání přidá **jednu** minu do maxima4 (`0x41ec89..0x41ec98`), nikoli čtyři kusy.
-- Položení a odečtení munice proběhne při eventu0 ve **142ms**. Otočení nebo výměna zbraně
-  před touto událostí pokládání zruší. Offsety L/R/U/D vůči sjednocenému půdorysu těla a
-  zbraně jsou `(-3,44),(27,33),(4,19),(23,49)` (`0x4827d4`).
-- Na zemi se vykresluje původní animace **177**, ne obrázek pickup268. Hraje jednou,
-  zůstane na snímku15 a při aktivaci se nerestartuje ani zprůhledňuje.
-- Aktivuje se **2000ms po položení**. Spouštěč je obdélník miny31×18 rozšířený10px
-  na každou stranu, tedy51×38. Porovnává se s kolizí hráče; samotný dotek hran nestačí.
-  **Vlastník není imunní**, kontroluje se i hráč stojící na mině v okamžiku aktivace.
-- Odpálení vytvoří původní výbuch **178**. Zásah a další řetězení nastávají až **142ms
-  po začátku výbuchu**. Výbuch zmizí po710ms, bez náhradního oranžového kruhu.
-- Zásah používá původní středový4×4 probe a osm paprsků po15krocích, ne kruh46px.
-  Nepojmenované překážky s ID255 se podle původní funkce`0x41b250` ignorují. Zvířecí
-  hitboxy a další pojmenované objekty mohou reagovat. Řetězení min různých vlastníků
-  používá zvlášť rozšířený obdélník výbuchu, bez stínění paprsků.
-- Roznětka typu3 odpaluje jen vlastní aktivované miny. Při směsi aktivních a neaktivních
-  zůstane zachovaná; spotřebuje se, až úspěšně odpálí všechny vlastní miny. Když není co
-  odpálit, nehraje animaci. Původní běžný generátor pickupů typ3 přeskočí; není vymyšlený
-  automatický grant rozbušky k mině. Typ3 zůstává dostupný pro explicitní give/debug.
+- A pickup adds **one** mine up to a maximum of 4 (`0x41ec89..0x41ec98`), not four.
+- Placement and ammo deduction happen at event 0 at **142 ms**. Turning or changing weapon before that
+  event cancels the placement. L/R/U/D offsets relative to the joined outline of body and weapon are
+  `(-3,44),(27,33),(4,19),(23,49)` (`0x4827d4`).
+- The ground shows original animation **177**, not pickup image 268. It plays once, stays on frame 15
+  and neither restarts nor fades on activation.
+- It activates **2000 ms after placement**. The trigger is the 31×18 mine rectangle widened by 10 px on
+  each side, i.e. 51×38. It is compared with the player's collision; merely touching edges is not
+  enough. **The owner is not immune**; a player standing on the mine at activation is checked too.
+- Detonation creates original explosion **178**. Damage and further chaining happen **142 ms after the
+  explosion starts**. The explosion disappears after 710 ms.
+- Damage uses the original central 4×4 probe and eight rays of 15 steps. Unnamed obstacles with ID 255
+  are ignored per original function `0x41b250`. Animal hitboxes and other named objects can react.
+  Chaining between mines of different owners uses a separately widened explosion rectangle, with no ray
+  shielding.
+- The type 3 detonator fires only the owner's activated mines. With a mix of active and inactive mines
+  it remains; it is used up once it has fired all the owner's mines. With nothing to fire it plays no
+  animation. The regular pickup generator skips type 3.
 
-Podrobné adresy a důkazy: [mines-re.md](mines-re.md).
+Detailed addresses and evidence: [mines-re.md](mines-re.md).
 
-## Samopal
+## SMG
 
-Při spuštění dávky ubude jeden zásobník. Události původní animace nastávají ve
-**71,213,355,497ms**, vytvářejí původní druhy střel3,4,5,6 a hrají banku3/sample3 pro první
-3střely a sample4 pro poslední. Zbraň zůstane vybavená přes celou poslední dávku. Normálně
-se ukončí v568ms a až potom se při vyčerpané munici vybere další vlastněná zbraň.
+Starting a burst uses one magazine. Events of the original animation occur at **71, 213, 355, 497 ms**,
+create original shot kinds 3, 4, 5, 6 and play bank 3 / sample 3 for the first 3 shots and sample 4 for
+the last. The weapon stays equipped through the whole last burst. It normally ends at 568 ms, and only
+then, with ammunition used up, is the next owned weapon selected.
 
-Puštění spouště dávku nepřeruší. **Otočení přeruší zbývající střely** stejně jako výměna
-zbraně a smrt. Důkaz: `0x4179e0 →0x439eb0 →0x439840` pozastaví starý časovač; následný
-`0x439b40` jen obnoví snímek0, nepokračuje časovačem. `0x42f290` neposílá resume.
+Releasing the trigger does not interrupt a burst. **Turning cancels the remaining shots**, as do a weapon
+change and death. Evidence: `0x4179e0 → 0x439eb0 → 0x439840` pauses the old timer; the following
+`0x439b40` only restores frame 0 and does not continue the timer. `0x42f290` sends no resume.
 
-Střely se nyní posouvají po původních **40px každých50ms**, s jedním náhodně určeným
-příčným posunem -4..4px na krok. Používají původní bitmapy a jejich rozměry; kontroluje se
-celá uražená dráha, včetně tenkých stěn a původní podmínky bez zásahu při pouhém dotyku hran.
+Shots now move by the original **40 px every 50 ms**, with one random cross offset of -4..4 px per step.
+They use the original bitmaps and sizes; the whole distance travelled is checked, including thin walls
+and the original condition that merely touching edges is no hit.
 
-## Ověření a hranice shody
+## Verification and limits of the match
 
-43testů simulace, včetně skutečného výstřelu hráče z okénka, smrti a trvalého stavu králíka,
-obou stran myši, zranitelnosti při střelbě, spuštění vlastní miny, časovaných výbuchů,
-řetězení, přerušení dávky a nativních kroků střel. Kontrola v prohlížeči ověřuje skutečně
-vykreslené původní snímky226/234/177/178 a zvuky, plus regresní kontroly všech pěti map a Exitu.
+Simulation tests cover a player's real shot from the window, the rabbit's death and lasting state, both
+sides of the mouse, vulnerability while firing, triggering one's own mine, timed explosions, chaining,
+burst interruption and native shot steps. A browser check verifies really drawn original frames
+226/234/177/178 and sounds.
 
-Tyto části jsou přenesené podle dostupného původního kódu. Úplná bitově shodná hra stále
-není prokázaná: JS má vlastní RNG a pořadí souběžných událostí se může lišit od Windows
-enginu. Brokovnicový zásah, přebíjení pistole, respawn pickupů a všechny síťové režimy
-ještě potřebují samostatné srovnání s během EXE. Tato úprava je neoznačuje za dokončené1:1.
+These parts follow the available original code. A fully bit-exact game is still not proven: JS has its
+own RNG and the order of simultaneous events may differ from the Windows engine.
 
-Reprodukce: `analysis/recover_bedtime.py`, `analysis/recover_mines_exact.py`,
-`analysis/build_original_gameplay_data.py`. Strojová data: `analysis/bedtime-exact.json`,
-`analysis/mines-exact.json`; běhové moduly: `bedtime.js`, `mines.js`, `engine.js`.
+Runtime modules: `bedtime.js`, `mines.js`, `engine.js`.

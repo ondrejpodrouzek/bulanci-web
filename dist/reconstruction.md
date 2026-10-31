@@ -1,274 +1,260 @@
-# Rozbor původní logiky a stav webového portu
+# Analysis of the original logic and state of the web port
 
-Hlavní zdroj: `bulanci_hra/bulanci.exe`, PE32 x86, image base `0x400000`. Původní program nebyl při statické analýze spouštěn. Grafika pochází z jeho extrahovaných resources, nikoli z nově kreslených náhrad. Webový engine je rekonstruovaná implementace a není zatím přesným portem původního enginu.
+Main source: `bulanci.exe`, PE32 x86, image base `0x400000`. The original program was never run during static analysis. Graphics come from its extracted resources, not from newly drawn substitutes. The web engine is a reconstructed implementation, not an exact port of the original engine.
 
-## Potvrzeno z EXE a dat
+Paths under `analysis/` and `web-*.png` snapshots refer to private working files that are not in this repository.
 
-### Čas a herní smyčka
+## Confirmed from the EXE and data
 
-- `0x42e770`: `start = timeGetTime()`, globální hodnota `0x4b3bdc`; současně nuluje `0x4b3bd8`.
-- `0x42e790`: zapisuje `uint32(timeGetTime() - start)` do `0x4b3bd8`.
-- Volání inicializace: `0x42a305`; aktualizace: `0x42bda6`.
-- Funkce `0x42bda0` aktualizuje časovač před zprávami okna (`PeekMessageW`, `TranslateMessage`, `DispatchMessageW`) a před pokračováním na `0x42bc00`.
-- Nejde o důkaz pevné frekvence fyziky. Web používá prozatímní krok 1/60 s.
+### Time and game loop
 
-### Bitmapy t28
+- `0x42e770`: `start = timeGetTime()`, global `0x4b3bdc`; also zeroes `0x4b3bd8`.
+- `0x42e790`: writes `uint32(timeGetTime() - start)` to `0x4b3bd8`.
+- Initialisation call: `0x42a305`; update: `0x42bda6`.
+- Function `0x42bda0` updates the timer before window messages (`PeekMessageW`, `TranslateMessage`, `DispatchMessageW`) and before continuing to `0x42bc00`.
+- This does not prove a fixed physics rate. The web uses a provisional step of 1/60 s.
 
-Původní první export začínal pixely o dva bajty dříve. To způsobovalo špatné barvy map. Správný začátek je offset 30.
+### t28 bitmaps
 
-- Prvních šest uint32: typ, šířka, výška, režim, stride, průhledný klíč.
-- Režim 5: BGR24, pixely od offsetu 30; ověřeno přesnou délkou `30 + stride * height`.
-- Režim 3: počet barev na offsetu 25, BGRA paleta od offsetu 30, poté indexované pixely; ověřeno přesnou délkou `30 + count * 4 + stride * height`.
-- Průhlednost je u indexovaného režimu porovnáním indexu, u BGR režimu barevným klíčem; `0xffffffff` znamená nepoužitý klíč.
-- Reprodukovatelný export: `analysis/extract_original_maps.py`.
+The first export started pixels two bytes too early, which gave maps wrong colours. The correct start is offset 30.
 
-### Animace t52
+- First six uint32: type, width, height, mode, stride, transparent key.
+- Mode 5: BGR24, pixels from offset 30; verified by the exact length `30 + stride * height`.
+- Mode 3: colour count at offset 25, BGRA palette from offset 30, then indexed pixels; verified by the exact length `30 + count * 4 + stride * height`.
+- Transparency is an index comparison in indexed modes and a colour key in BGR mode; `0xffffffff` means no key.
 
-- Dekódováno 130 resources 177–306, celkem 2565 snímků.
-- Plné RLE: rutina `0x432740`. Kladné číslo n opakuje další pixel n+1krát; nula čte uint16 délku +1; záporné číslo kopíruje -n literálů.
-- Delta RLE: `0x432780`, přeskakování a přepisování oblastí předchozího snímku.
-- Základní paleta: 256 BGRA položek na `0x4aeb20`; její kopírování potvrzuje reference `0x413237`.
-- Barvy hráčů: rutina `0x413220` upravuje pouze rampu 112–151. Index 127 je zvolená barva. Světlá část 112–126 interpoluje od bílé; tmavá 128–151 interpoluje k černé. Web používá takto vyexportované varianty postav i rukou u zbraní.
-- Původní časové údaje jsou v manifestu: například osmisnímková chůze má 378 časových jednotek, směrový zásah 31 snímků a 2201 jednotek. Jejich použití jako milisekund odpovídá WinMM časování, ale návaznost celého původního plánovače ještě není kompletně ověřená.
-- Chůze: 196 dolů, 198 doleva, 200 doprava, 202 nahoru. Směr stran byl dodatečně ověřen vizuálně; protilehlé číslování z prvního pracovního odhadu se nepoužívá.
-- Zásah: 204 dolů, 206 doleva, 208 doprava, 210 nahoru.
-- Chunk 10 nese dvojici souřadnic. Dispatch `0x432d98` ji předává observerům přes `0x436e80`. Zatím nelze tvrdit, zda jde o pohyb kořene nebo jinou událost. Web ji proto automaticky nepřičítá k vykreslení.
-- Sekundární roviny a události chunků 11–15 nejsou plně interpretované; správně dekódované barevné snímky samy o sobě neznamenají obnovení celé logiky animace.
-- Export: `analysis/decode_original_sprites.py`; další důkazy: `analysis/original_sprites/README.md`.
+### t52 animations
 
-### Mapy a původní souřadnice
+- 130 resources 177–306 decoded, 2565 frames in total.
+- Full RLE: routine `0x432740`. A positive n repeats the next pixel n+1 times; zero reads a uint16 length +1; a negative number copies -n literals.
+- Delta RLE: `0x432780`, skips and overwrites regions of the previous frame.
+- Base palette: 256 BGRA entries at `0x4aeb20`; reference `0x413237` confirms the copy.
+- Player colours: routine `0x413220` changes only ramp 112–151. Index 127 is the chosen colour. The light part 112–126 interpolates from white; the dark part 128–151 interpolates to black. The web uses variants exported this way for characters and for hands on weapons.
+- Original timing is in the manifest: for example, the eight-frame walk has 378 time units, a directional hit 31 frames and 2201 units. Treating them as milliseconds fits WinMM timing, but the link to the whole original scheduler is not fully verified.
+- Walk: 196 down, 198 left, 200 right, 202 up. Side direction was later verified visually; the opposite numbering from the first working guess is not used.
+- Hit: 204 down, 206 left, 208 right, 210 up.
+- Chunk 10 carries a coordinate pair. Dispatch `0x432d98` passes it to observers through `0x436e80`. (Later found to be root motion, see the Noční směna crane.)
 
-Resources 319, 321 a 322 poskytují Vybíjenou, Noční směnu a Malárii. Rozpoznané záznamy jsou exportované v `analysis/original-map-records.json` včetně offsetů do původních dat.
+### Maps and original coordinates
 
-- Záznamy `33 2e 00`: bitmapová vrstva, x, y, resource ID.
-- Záznamy `33 2f 00`: souřadnice levého horního a pravého dolního rohu obdélníku.
-- Záznamy `33 38 2d 00`: animovaný objekt, x, y, resource ID.
-- Vybíjená: 1 obrazová vrstva, 6 obdélníků.
-- Noční směna: 5 vrstev, 18 obdélníků, 1 animovaný objekt.
-- Malárie: 3 vrstvy, 7 obdélníků, 8 animovaných objektů.
+Resources 319, 321 and 322 provide Vybíjená, Noční směna and Malárie.
 
-Jde o extrakci konkrétních pozorovaných záznamů, nikoli úplný parser skriptového formátu. Obdélníky se používají jako kolize; jejich přesné vztahy k různým typům objektů a projektilů ještě vyžadují kontrolu. Vrstvení objektů vůči postavám také není kompletně převzaté z původního rendereru.
+- Records `33 2e 00`: bitmap layer, x, y, resource ID.
+- Records `33 2f 00`: top-left and bottom-right corners of a rectangle.
+- Records `33 38 2d 00`: animated object, x, y, resource ID.
+- Vybíjená: 1 image layer, 6 rectangles.
+- Noční směna: 5 layers, 18 rectangles, 1 animated object.
+- Malárie: 3 layers, 7 rectangles, 8 animated objects.
 
-### Třídy a zbraně
+### Classes and weapons
 
-RTTI zachovalo 155 názvů tříd. Důležité jsou `CBulanek`, `CShot`, `CWeapon`, `CLevelScript`, `CMina`, `CExplosion`, `CTeleportPoint` a `CColorSet`.
+RTTI preserved 155 class names. Important ones are `CBulanek`, `CShot`, `CWeapon`, `CLevelScript`, `CMina`, `CExplosion`, `CTeleportPoint` and `CColorSet`.
 
-- CWeapon primární vtable `0x481eec`; konstrukce `0x418ef0`, další konstruktor `0x41dbc0`.
-- CWeapon `0x41dae0` je mazací destruktor; nelze ji považovat za aktualizaci zbraně.
-- CShot `0x417190` je obdobně mazací destruktor.
-- Tabulka šesti sad prostředků zbraní na `0x482820`, krok 28 bajtů. Konstruktor `0x41dbc0` indexuje sedm uint32 na typ a načítá čtyři směrové prostředky.
-- Pistolové sprity 269–272; brokovnice 285–288; samopal 289–292: vizuální přiřazení původních snímků, směr potvrzen vzhledem spritů.
-- Původní ležící zbraně jsou animace 219 a 222. Web je používá pro samopal a brokovnici.
-- Přesná sémantika zbývajících polí tabulky, offsety držení zbraní a původní zásobníkový mechanismus nejsou kompletně zrekonstruované.
+- CWeapon primary vtable `0x481eec`; construction `0x418ef0`, another constructor `0x41dbc0`.
+- CWeapon `0x41dae0` is a deleting destructor and must not be taken for a weapon update.
+- CShot `0x417190` is likewise a deleting destructor.
+- A table of six weapon resource sets at `0x482820`, 28-byte step. Constructor `0x41dbc0` indexes seven uint32 per type and loads four directional resources.
+- Pistol sprites 269–272; shotgun 285–288; SMG 289–292: visual assignment of original frames, direction confirmed by sprite appearance.
+- Original weapons lying on the ground are animations 219 and 222.
 
-### Původní zvuk
+### Original sound
 
-- t67 udává zdrojový PCM resource a délky jednotlivých klipů.
-- t43 obsahuje kanály, bitovou hloubku a vzorkovací frekvenci, PCM začíná na offsetu 16.
-- Délka PCM se čte z hlavičky. U resource 338 zůstávají za deklarovanou oblastí další bajty; nejsou připojené k poslednímu zvuku.
-- Exportováno 62 původních klipů skriptem `analysis/extract_original_audio.py`.
-- Web přehrává původní klipy, ale jejich přiřazení ke konkrétním zbraním je zatím pracovní.
+- t67 gives the source PCM resource and the lengths of individual clips.
+- t43 holds channels, bit depth and sample rate; PCM starts at offset 16.
+- PCM length is read from the header. Resource 338 has further bytes after the declared area; they are not attached to the last sound.
+- 62 original clips exported.
 
-## Další reference, nikoli automaticky původní chování
+## Other references, not automatically original behaviour
 
-Android projekt: https://github.com/JustNaxi/Bulanci . Zdrojové soubory jsou uložené mimo web v `reference-android/`. Nebyl převzat jeho Java kód ani jeho grafické soubory.
+Android project: https://github.com/JustNaxi/Bulanci . Neither its Java code nor its graphics were used.
 
-- Android Player používá čtyři směrové obrázky a zásah vede přímo k respawnu.
-- Jeho GunPistol používá 4 náboje; dobový návod na přiloženém USB uvádí 5.
-- Jeho GunShotgun generuje 4 projektily; dobový návod uvádí 5 broků.
-- Proto se jeho konstanty nepovažují za autoritativní pro Windows verzi.
-- Dobový návod: Abeceda her, návod. Uvádí pistoli 5 nábojů, brokovnici 4 rány po 5 brocích, samopal 4 zásobníky po 4 nábojích. U tréninku popisuje stojící počítačové soupeře.
+- Android Player uses four directional images and a hit leads straight to a respawn.
+- Its GunPistol uses 4 rounds; the period manual says 5.
+- Its GunShotgun generates 4 projectiles; the period manual says 5 pellets.
+- Its constants are therefore not considered authoritative for the Windows version.
+- Period manual (Abeceda her): pistol 5 rounds, shotgun 4 shots of 5 pellets, SMG 4 magazines of 4 rounds. For training it describes standing computer opponents.
 
-## Co nyní běží ve webu
+## What is still provisional (updated 29 Oct 2026)
 
-Původní bitmapové menu a HUD, tři složené mapy, původní směrové animace chůze a zásahu, animované zbraně v rukou, původní grafika sbíratelných zbraní, munice, automatické nabíjení pistole, bodování, časový limit, trénink a dva lokální hráči. Sbírání zbraně se aktivuje přechodem přes její polohu; automaticky ji vybaví a doplní munici.
+Items finished from the earlier list (character speed and steps, collision rectangle, death length, SMG, weapon pickups, training, rocket launcher, mines, power-ups, pipes, teleports, creatures, Na dobrou noc layout, the 8-bit map) are described in the updates below. Remaining:
 
-## Co je stále provizorní (aktualizováno 29. 10. 2026)
+- Network game: first version finished (see below); pause, in-game chat and a player disconnecting mid-game are simplified.
 
-Hotové položky z dřívějšího seznamu (rychlost a kroky postavy, kolizní obdélník, délka smrti, samopal, sbíratelné zbraně, trénink, raketomet, miny, power-upy, roury, teleporty, tvorové, rozmístění Na dobrou noc, mapa 8-bit) jsou popsané v aktualizacích níže. Zbývá:
+## Checks
 
-- Vzhled: menu na dotykových zařízeních, síťové dialogy (jen jako vzhledová reference).
-- Síťová hra: první verze hotová (viz níže); pauza, chat během hry a odpojení hráče v průběhu hry zatím zjednodušené.
+Automated tests verify obstacles, shots stopped by walls, hits without double scoring, picking up weapons, emptying and reloading the pistol, and end of round. Browser checks verify start, maps, movement and shooting, pause and resume, local mode and the status page. These checks verify that the new implementation works, not that it matches the Windows EXE.
 
-## Kontroly
+## Update 28 Oct 2026: Na dobrou noc and weapons
 
-Automatické testy ověřují překážky, zastavení střely zdí, zásah bez vícenásobného přičtení bodu, sbírání zbraně, vyprázdnění a přebití pistole a konec kola. Kontrola v prohlížeči ověřuje Start, všechny tři mapy, pohyb/střelbu, pauzu/návrat, lokální režim a dostupnost stránky se stavem. Tyto kontroly ověřují funkčnost nové implementace, nikoli shodu s Windows EXE.
+The original states of the rabbit and mouse, placing and arming of mines and interruption of SMG bursts are now connected to the game. Older guesses in the previous sections are replaced by the [current analysis](bedtime-re.md) and the [mine analysis](mines-re.md).
 
+## Update 28 Oct 2026: shotgun from the EXE
 
-## Aktualizace 28. 10. 2026: Na dobrou noc a zbraně
+The earlier web approximation (five separate shots at a fixed 7 px spacing) is replaced by the original mechanism:
 
-Původní stavy králíka, myši, pokládání a aktivace min i přerušování dávky samopalu jsou nyní propojené s hrou. Starší odhady v předchozích oddílech nahrazují [aktuální rozbor](bedtime-re.md) a [rozbor min](mines-re.md). Kontroly zahrnují43testů simulace a skutečné vykreslení i zvuky v prohlížeči.
+- Fire function `0x41fdf0` creates **one** shot: `CShot` through constructor `0x41edf0` with kind 1 and bitmap 23–26 (9×6 or 6×9 px).
+- The constructor sets the pellet mask `shot+0xa7 = 0x1f` (`0x41ef0c`), i.e. five pellets. Only kinds ≥ 3 (SMG) get a random cross offset −4..4, not the shotgun.
+- Timer `0x419b40` moves the shot rectangle 40 px along the flight direction and, for kind 1, also widens it by 5 px on both perpendicular sides.
+- `0x417b30` computes the rectangle of pellet i: perpendicular origin `edge + trunc((rect size − bitmap size)·i/4)`, bitmap size; along the flight direction, the whole rectangle. All five pellets therefore start on top of each other and then spread evenly (outer pellet slope 5:40).
+- Update `0x41df60` tests each live pellet separately from the old to the new rectangle (`0x41de60`). A pellet that hits is removed from the mask (`0x41e016`); the shot ends only with an empty mask. One shot can therefore hit several targets.
+- For horizontal directions the sprite drawing depth also drops (`0x418fe0`, `shot+0x6c`: 15, 10, 5, …).
 
-## Aktualizace 28. 10. 2026: brokovnice podle EXE
+Tests: `test/shotgun.test.mjs`.
 
-Dřívější webová aproximace (pět samostatných střel v pevném rozestupu 7 px) je nahrazena původním mechanismem:
+## Update 28 Oct 2026: training opponents from the EXE
 
-- Fire funkce `0x41fdf0` vytváří **jedinou** střelu: `CShot` konstruktorem `0x41edf0` s druhem 1 a bitmapou 23–26 (9×6, resp. 6×9 px).
-- Konstruktor nastaví masku broků `shot+0xa7 = 0x1f` (`0x41ef0c`), tedy pět broků. Náhodný příčný posun −4..4 dostávají jen druhy ≥ 3 (samopal), brokovnice ne.
-- Časovač `0x419b40` posune obdélník střely o 40 px ve směru letu a u druhu 1 ho zároveň rozšíří o 5 px na obě kolmé strany.
-- `0x417b30` počítá obdélník broku i: kolmý počátek `okraj + trunc((rozměr obdélníku − rozměr bitmapy)·i/4)`, rozměr bitmapy; podél směru letu celý obdélník. Na začátku tak všech pět broků leží na sobě a pak se rovnoměrně rozevírají (sklon krajních broků 5:40).
-- Update `0x41df60` testuje každý živý brok zvlášť od starého k novému obdélníku (`0x41de60`). Zasažený brok se z masky odstraní (`0x41e016`); střela zaniká až s prázdnou maskou. Jeden výstřel tak může zasáhnout víc cílů.
-- U vodorovných směrů se navíc snižuje hloubka vykreslení spritu (`0x418fe0`, `shot+0x6c`: 15, 10, 5, …). Na hratelnost to vliv nemá; web ji nepoužívá.
+Period sources (manual: "the computer does not move"; Gamez review: "does not chase you, but fires only if you get into one of its axes") are confirmed by the code:
 
-Testy: `test/shotgun.test.mjs`. Snímek: `analysis/web-shotgun-original-spread.png`.
+- Game start `0x4205a0`: a bulánek per player; if there is only one player (`config+0xd8 == 1`), a loop creates computers with IDs `0x7d`–`0x7f` through `0x420530` → `0x41f500(id,-1,1,100,0)`: speed 100, starting weapon 0 (pistol).
+- Constructor `0x41e4b0`: ID > 3 sets `+0x199 = 1` and creates four sensors `0x41b420` reaching to the battlefield edges (`0x41fb90`: 0/799/0/515).
+- `0x417500`: for `+0x199` or ID ≥ 4 ammunition is not deducted, so the pistol never reloads.
+- No movement: the wandering timer4 (`0x420bf6`, `0x4172d0`) runs only for IDs 0x20–0x27 (`0x416490`).
+- Sensor entry (`0x421047`): the message is stored in `+0x188` even before the visibility test `0x4194b0`/`0x4192b0`; if visible, the bot turns (`0x4197b0`) and starts one-shot timer1 with period `rand(0..3)·500 ms` (`0x40ace0(0,3)`, `0x42110c`). The sensor stays occupied until left.
+- Leaving any sensor (`0x421133`) cancels timer1 and zeroes `+0x188`.
+- Timer1 (`0x4208c0`) fires only with an idle weapon.
+- A timer with flag 2 without bit 4 is one-shot: handler `0x42eb30` frees the record after firing and repeats only with `flags & 4`.
+- Sensor masks contain only slots 0–3 (`0x4194b0`: `mask & 0xf`), i.e. human players; computers and undead do not react to each other.
+- Respawn `0x41f770`: ID > 3 gets a weapon by `rand·101>>15 < 10` → shotgun with probability 10/101, otherwise pistol (`0x41ea90`).
 
-## Aktualizace 28. 10. 2026: tréninkoví soupeři podle EXE
+Undead fix: their timer1 is also one-shot (`0x4210bf`, flag 2). The web used to repeat the burst every 500 ms; now they fire 500 ms after entering an axis and again only after the 2 s sensor check (timer4 `0x420c30`). Undead also no longer see training opponents.
 
-Dobové zdroje (návod: „Počítač se sice nehýbe“; recenze Gamez: „nijak nepronásleduje, ale vystřelí po vás jen pokud se dostanete do nějaké jeho osy“) potvrzuje kód:
+Remaining: exact message order on simultaneous entry into several sensors (the web takes the lowest direction) and the computer's spawn relative to the player (`0x41a140` picks a random free place on the whole battlefield, the web too).
 
-- Start hry `0x4205a0`: bulánek pro každého hráče; pokud je hráč jen jeden (`config+0xd8 == 1`), smyčka vytvoří počítače s ID `0x7d`–`0x7f` přes `0x420530` → `0x41f500(id,-1,1,100,0)`: rychlost 100, počáteční zbraň 0 (pistole).
-- Konstruktor `0x41e4b0`: ID > 3 nastaví `+0x199 = 1` a vytvoří čtyři senzory `0x41b420` sahající k okrajům bojiště (`0x41fb90`: 0/799/0/515).
-- `0x417500`: pro `+0x199` nebo ID ≥ 4 se munice neodečítá, pistole se tedy ani nepřebíjí.
-- Bez pohybu: bloumací timer4 (`0x420bf6`, `0x4172d0`) běží jen pro ID 0x20–0x27 (`0x416490`).
-- Vstup do senzoru (`0x421047`): zpráva se uloží do `+0x188` ještě před testem viditelnosti `0x4194b0`/`0x4192b0`; při viditelnosti se bot otočí (`0x4197b0`) a spustí jednorázový timer1 s periodou `rand(0..3)·500 ms` (`0x40ace0(0,3)`, `0x42110c`). Senzor zůstává obsazený do opuštění.
-- Opuštění kteréhokoli senzoru (`0x421133`) timer1 zruší a `+0x188` vynuluje.
-- Timer1 (`0x4208c0`) vystřelí jen při nečinné zbrani.
-- Timer s příznakem 2 bez bitu 4 je jednorázový: obsluha `0x42eb30` po spuštění uvolní záznam, opakuje jen při `flags & 4`.
-- Masky senzorů obsahují jen sloty 0–3 (`0x4194b0`: `mask & 0xf`), tedy lidské hráče; počítače ani nemrtví po sobě navzájem nereagují.
-- Respawn `0x41f770`: ID > 3 dostane zbraň `rand·101>>15 < 10` → brokovnice s pravděpodobností 10/101, jinak pistole (`0x41ea90`).
+Code: `training.js`, `exitus.js` (`sensorSees`, `sensorMasks`). Tests: `test/training.test.mjs`.
 
-Oprava nemrtvých: jejich timer1 je také jednorázový (`0x4210bf`, příznak 2). Dříve web opakoval dávku každých 500 ms; nyní vystřelí 500 ms po vstupu do osy a znovu až po 2s kontrole senzorů (timer4 `0x420c30`). Nemrtví také už nevidí tréninkové soupeře.
+## Update 28 Oct 2026: power-ups from the EXE
 
-Zbývá: přesné pořadí zpráv při současném vstupu do více senzorů (web bere nejnižší směr) a spawn počítače vůči hráči (`0x41a140` volí náhodné volné místo na celém bojišti, web stejně).
+Manual: eye = invisibility, clock = a few seconds of time, bullet = unlimited ammunition, shield = immortality. In the EXE:
 
-Kód: `training.js`, `exitus.js` (`sensorSees`, `sensorMasks`). Testy: `test/training.test.mjs`.
+- Only in a one-player game (`0x42031b`, `config+0xd8 == 1`): animations 293 (eye), 294 (shield), 221 (bullet), 220 (clock) load into slots `+0x324..+0x330`; `CSpells` is only a HUD panel.
+- Timer0 cycle of the game object (`0x417c80`, state `+0x33c`): state 0 = 25,000 ms, then `0x41b500` selects `rand·256>>15>>6` (each kind 1/4) and places it through `0x41b390` → `0x41a140` (random free place); state 1 = 10,000 ms, then `0x419e40` hides everything and the cycle restarts.
+- Pickup `0x41f0c0`: overlap of the collision rectangle of any living character with the item → `0x41a020`: removal, sound (global bank, first player 32/35/33/31 by kind, others 34), restart of the 25 s countdown.
+- Effect `0x414550`: clock: human (ID < 3) +15 s, otherwise −15 s (minimum 1 s); eye/shield/bullet: 20,000 ms (`0x4145c4`), picking up again restarts the timer. Message `0xee` sets `+0x198` (eye), `+0x19a` (shield), `+0x199` (bullet); `0xef` clears them.
+- Shield: death message `0x420d7a` is ignored with `+0x19a`.
+- Bullet: `+0x199` is the same flag as for computers, `0x417500` does not deduct ammunition.
+- Eye: drawing `0x417640` skips the character for others; in one-player mode the local player sees themselves faintly additive (`0x303030`). Sensor areas without flag 2 do not register an invisible character (`0x417dfd`), so bots and undead cannot see it; mines (flags 0x0a) can.
 
-## Aktualizace 28. 10. 2026: power-upy podle EXE
+Web: `powerups.js`; tests `test/powerups.test.mjs`. Not verified: behaviour of the mouse sensors in Na dobrou noc towards an invisible player.
 
-Návod: oko = neviditelnost, hodiny = pár vteřin času, náboj = neomezené náboje, štít = nesmrtelnost. V EXE:
+## Update 28 Oct 2026: teleporting training opponents
 
-- Jen ve hře jednoho hráče (`0x42031b`, `config+0xd8 == 1`): načtou se animace 293 (oko), 294 (štít), 221 (náboj), 220 (hodiny) do slotů `+0x324..+0x330`; `CSpells` je jen panel HUD.
-- Cyklus timeru0 herního objektu (`0x417c80`, stav `+0x33c`): stav 0 = 25 000 ms, poté `0x41b500` vybere `rand·256>>15>>6` (každý druh 1/4) a umístí ho `0x41b390` → `0x41a140` (náhodné volné místo); stav 1 = 10 000 ms, pak `0x419e40` vše skryje a cyklus začne znovu.
-- Sebrání `0x41f0c0`: překryv kolizního obdélníku kterékoli živé postavy s předmětem → `0x41a020`: odebrání, zvuk (globální banka, první hráč 32/35/33/31 podle druhu, ostatní 34), restart 25s odpočtu.
-- Efekt `0x414550`: hodiny – člověk (ID < 3) +15 s, jinak −15 s (minimálně 1 s); oko/štít/náboj – 20 000 ms (`0x4145c4`), opakované sebrání restartuje časovač. Zpráva `0xee` nastaví `+0x198` (oko), `+0x19a` (štít), `+0x199` (náboj); `0xef` je ruší.
-- Štít: zpráva smrti `0x420d7a` je ignorována při `+0x19a`.
-- Náboj: `+0x199` je tentýž příznak jako u počítačů, `0x417500` munici neodečte.
-- Oko: vykreslení `0x417640` postavu ostatním vynechá; lokální hráč v jednom hráči se vidí slabě aditivně (`0x303030`). Senzorové oblasti bez příznaku 2 neviditelnou postavu nezaznamenají (`0x417dfd`) – boti ani nemrtví ji nevidí; miny (příznaky 0x0a) ano.
+Manual: the computer "cunningly appears behind your back". In the EXE only computers teleport (in playable maps; the only scripted teleport, opcode `0x55` → `0x41e430`, is used by the 8-bit map 323):
 
-Web: `powerups.js`; testy `test/powerups.test.mjs`; snímek `analysis/web-powerups.png`. Neověřeno: vzhled panelu `CSpells` v HUD (web ukazuje jen hlášku) a chování senzorů myši v Na dobrou noc vůči neviditelnému.
+- Function `0x41db00(x,y,flag)` → `0x41d090`: with x = −1 a random free place (`0x41a140`), two `CTeleportPoint` objects (`0x41c9a0`, animation 304 centred on the character rectangle) at the old and new place, sound 4/36, `+0x16a = 1`, timer2 restart.
+- Timer2 (flags 7, repeating): `0x417260` sets the period `(rand(0..10)+5)·1000 ms` on respawn and after a teleport; handler `0x420bc6` teleports only with an idle weapon.
+- End of the weapon animation (`0x4212b0`, event `0xffff`): a computer that has not yet teleported in the same callback does so with probability `rand(0..99) < 40`; undead call the movement decision `0x420a90` instead.
+- `+0x16a` blocks turning `0x4197b0` and thus the sensor response; it is cleared by the end of the one-shot animation at the old place (`0x41fed0`, 497·6/7 = 426 ms) or by death (`0x41fad7`).
 
-## Aktualizace 28. 10. 2026: teleport tréninkových soupeřů
+Web: `training.js` (`teleport`, `armTeleport`, `trainingWeaponEnded`), `app.js` draws animation 304. Tests in `test/training.test.mjs`. Approximation: the effect's drawing order (depth −11) is always above characters in the web.
 
-Návod: počítač „se Vám mazaně objeví za zády“. V EXE se teleportují jen počítače (v hratelných mapách; jediný skriptový teleport, opcode `0x55` → `0x41e430`, používá mapa 8-bit 323):
+## Update 28 Oct 2026: the "V zajetí 8-bitu" map (script 323)
 
-- Funkce `0x41db00(x,y,příznak)` → `0x41d090`: při x = −1 náhodné volné místo (`0x41a140`), dva objekty `CTeleportPoint` (`0x41c9a0`, animace 304 vycentrovaná na obdélník postavy) na starém a novém místě, zvuk 4/36, `+0x16a = 1`, restart timeru2.
-- Timer2 (příznaky 7, opakovaný): `0x417260` při respawnu a po teleportu nastaví periodu `(rand(0..10)+5)·1000 ms`; obsluha `0x420bc6` teleportuje jen při nečinné zbrani.
-- Konec animace zbraně (`0x4212b0`, událost `0xffff`): počítač, který se v tomtéž callbacku ještě neteleportoval, se teleportuje s pravděpodobností `rand(0..99) < 40`; nemrtví místo toho volají rozhodnutí o pohybu `0x420a90`.
-- `+0x16a` blokuje otočení `0x4197b0`, a tím i odezvu senzoru; nuluje ho konec jednorázové animace na starém místě (`0x41fed0`, 497·6/7 = 426 ms) nebo smrt (`0x41fad7`).
+**Bitmaps.** Backgrounds 93, 94, 95, 100, 101, 105 and shots 96–99 use t28 modes the old export did not know: mode 1 = 2 bits per pixel (highest pair first), mode 2 = 4 bits (high nibble first), palette of `count` BGRA from offset 30, index = key is transparent. An 8-bit alpha plane `w·h` may follow the indices (glass cube 95, post 94). Verified by exact file length.
 
-Web: `training.js` (`teleport`, `armTeleport`, `trainingWeaponEnded`), `app.js` vykresluje animaci 304. Testy v `test/training.test.mjs`, snímek `analysis/web-teleport.png`. Přiblížení: pořadí vykreslení efektu (hloubka −11) je ve webu vždy nad postavami.
+**Scene** (323:0x14d–0x375): floor 100, scenery 95/101/93/94 with script z, four fixed obstacles. Objects:
 
-## Aktualizace 28. 10. 2026: mapa „V zajetí 8-bitu“ (skript 323)
-
-**Bitmapy.** Podklady 93, 94, 95, 100, 101, 105 a střely 96–99 používají režimy t28, které starý export neznal: režim 1 = 2 bity na pixel (nejvyšší dvojice první), režim 2 = 4 bity (vyšší nibble první), paleta `count` BGRA od offsetu 30, index = klíč je průhledný. Za indexy může následovat 8bitová alfa rovina `w·h` (skleněná krychle 95, sloupek 94). Ověřeno přesnou délkou souborů. Export: `analysis/export_8bit_assets.py`.
-
-**Scéna** (323:0x14d–0x375): podlaha 100, kulisy 95/101/93/94 se skriptovým z, čtyři pevné překážky. Objekty:
-
-| Objekt | Animace | Tělo / callback | Chování |
+| Object | Animation | Body / callback | Behaviour |
 |---|---|---|---|
-| 10 | 254 | 11 | 9 zásahů, stupeň = zásahy/3 (0x71b) |
-| 16 (klec) | 255 | 17 | 2 zásahy, stupeň = zásah (0x77a) |
-| 12 | 256 | 13 | 4 zásahy, stupeň = zásahy/2 (0x7bc) |
-| 14 | 257 | 15 | 4 zásahy, stupeň = zásahy/2 (0x81b) |
-| 9 (tvor) | 259,262,260,263,258,261 | 18 tělo, 19 zranitelné | viz níže |
-| 20 (pozůstatky) | 264 | — | po smrti tvora |
+| 10 | 254 | 11 | 9 hits, stage = hits/3 (0x71b) |
+| 16 (cage) | 255 | 17 | 2 hits, stage = hit (0x77a) |
+| 12 | 256 | 13 | 4 hits, stage = hits/2 (0x7bc) |
+| 14 | 257 | 15 | 4 hits, stage = hits/2 (0x81b) |
+| 9 (creature) | 259,262,260,263,258,261 | 18 body, 19 vulnerable | see below |
+| 20 (remains) | 264 | — | after the creature's death |
 
-Změna stupně: `native_58(obj, starý stupeň)` + `native_50` přehraje animaci od snímku stupně; callback (entry 3, 0x4bc) volá `native_40` a zastaví ji na další události chunk 12 (254: snímky 1, 2; ostatní: 1) nebo na posledním snímku. Po posledním zásahu callback odstraní tělo a dá objektu z −120 (leží na zemi). Zvuky `object_event(k)` = banka levelu 0, vzorek k: zásah 3, zničení 4.
+Stage change: `native_58(obj, old stage)` + `native_50` plays the animation from the stage's frame; the callback (entry 3, 0x4bc) calls `native_40` and stops it at the next chunk 12 event (254: frames 1, 2; others: 1) or on the last frame. After the last hit the callback removes the body and gives the object z −120 (it lies on the ground). Sounds `object_event(k)` = level bank 0, sample k: hit 3, destruction 4.
 
-**Tvor v kleci** (objekt 9): timer0 3000 ms (0x49a) → 0x935: s pravděpodobností 1/3, jen když je klec rozbitá (`g6 ≥ 2`), tvor nehraje animaci (`native_57`) a v kleci nikdo nestojí (`g7 = 0`). Volba stavu podle regionů: pravý pruh (g9) → 1/4 útok doprava (stav 4), jinak vykouknutí 0; dolní pruh (g8) → 1/4 útok dolů (5), jinak 1; nikdo → vystavení 2/3; někdo nad klecí nebo oba pruhy → 0/1. Vstup do pruhu (0xbd6) s pravděpodobností 1/2 vyvolá okamžitě útok (stav 4+strana), před rozbitím klece jen vykouknutí. Stav 0xb55 zapne tělo 18. Události: 0 → zranitelné tělo 19 místo 18, poslední (2 u útoků, 1 u vystavení) → zpět 18, 1 u útoků → výstřel `native_62` z (260,96) doprava nebo (221,136) dolů, vlastník 9, 8bitová střela 97/98/99/96, zvuk 0. Konec → tělo 18 pryč. Zásah těla 19 (0x87a): zvuk 1; osmý zásah zabije tvora (zvuk 2, skrytí, pozůstatky 264, po jejich dohrání z −120 a žádné tělo).
+**Caged creature** (object 9): timer0 3000 ms (0x49a) → 0x935: with probability 1/3, only if the cage is broken (`g6 ≥ 2`), the creature plays no animation (`native_57`) and nobody stands in the cage (`g7 = 0`). State choice by regions: right strip (g9) → 1/4 attack right (state 4), otherwise peek 0; bottom strip (g8) → 1/4 attack down (5), otherwise 1; nobody → exposure 2/3; someone above the cage or both strips → 0/1. Entering a strip (0xbd6) triggers an immediate attack with probability 1/2 (state 4+side), before the cage is broken only a peek. State 0xb55 enables body 18. Events: 0 → vulnerable body 19 instead of 18, last (2 for attacks, 1 for exposure) → back to 18, 1 for attacks → shot `native_62` from (260,96) right or (221,136) down, owner 9, 8-bit shot 97/98/99/96, sound 0. End → body 18 removed. Hit on body 19 (0x87a): sound 1; the eighth hit kills the creature (sound 2, hidden, remains 264, then z −120 and no body once they finish).
 
-**Teleportační plošinky** (regiony 0–2, příznaky 6 = lidé, i neviditelní; ne počítače): vstup (0xc5f) → 0xa89 zkusí jednu ze dvou ostatních plošinek (pořadí 5/11), `try_move` = opcode 0x55 → 0x41e430 → teleport 0x41db00 na zadaný levý horní roh kolizního obdélníku (40,195)/(452,77)/(704,387); obsazené místo selže a zkusí se druhé. Příchod na cílovou plošinku teleport neopakuje díky zámku `+0x16a`. Regiony: příznak 8 = počítají se i počítače, 2 = i neviditelní (`0x417dd0`).
+**Teleport platforms** (regions 0–2, flags 6 = humans, including invisible; not computers): entry (0xc5f) → 0xa89 tries one of the two other platforms (order 5/11), `try_move` = opcode 0x55 → 0x41e430 → teleport 0x41db00 to the given top-left corner of the collision rectangle (40,195)/(452,77)/(704,387); an occupied place fails and the other is tried. Arriving on the target platform does not repeat the teleport thanks to the `+0x16a` lock. Regions: flag 8 = computers count too, 2 = invisible too (`0x417dd0`).
 
-Web: `eightbit.js`; testy `test/eightbit.test.mjs`; snímek `analysis/web-8bit-creature.png`. Pozadí okna 105 (rám automatu) web nevykresluje, stejně jako u ostatních map. Síťové větve skriptu (`native_4d`, 0x25–0x2a, 0x4b) se v lokální hře neprovádějí.
+Web: `eightbit.js`; tests `test/eightbit.test.mjs`. The web does not draw window background 105 (the arcade frame), as with other maps. Network branches of the script (`native_4d`, 0x25–0x2a, 0x4b) do not run in a local game.
 
-## Aktualizace 28. 10. 2026: zánik střely
+## Update 28 Oct 2026: end of a shot
 
-`CShot` nemá dobu života. Kolizní test `0x41de60` (čtyři mezikroky každého 40px posunu) končí střelu při zásahu, nebo když nový obdélník překročí bojiště: levý/horní okraj < 0, pravý > 799 (`0x31f`), dolní > 515 (`0x203`). U brokovnice jde tento test pro každý brok zvlášť, takže broky mimo pole vypadávají z masky jednotlivě. Dřívější webový odhad 1,5 s je odstraněn.
+`CShot` has no lifetime. Collision test `0x41de60` (four sub-steps of every 40 px move) ends the shot on a hit, or when the new rectangle crosses the battlefield: left/top edge < 0, right > 799 (`0x31f`), bottom > 515 (`0x203`). For the shotgun this runs per pellet, so pellets outside the field drop from the mask individually. The earlier web guess of 1.5 s is removed.
 
-## Aktualizace 28. 10. 2026: panel aktivních power-upů (CSpells)
+## Update 28 Oct 2026: active power-up panel (CSpells)
 
-`CSpells` (vtable `0x483acc`, třída `0x80d`, konstruktor `0x427d40`) vzniká pro každého hráče v konstruktoru HUD `0x4280f0` na pozici (X panelu + 6, 41) uvnitř lišty 117 (y = 495). X panelů hráčů je tabulka `0x4af924` = 12, 149, 556, 693 (web dříve používal odhad 12/155/525/686). Kreslení `0x4278c0` pro každý aktivní bit (0 oko, 1 štít, 2 náboj; zprávy `0xee`/`0xef`) zkopíruje z bitmapy 78 výřez na tutéž relativní pozici: oko x 25–36, štít 0–11, náboj 13–23, výška 14. Snímek `analysis/web-hud-spells.png`.
+`CSpells` (vtable `0x483acc`, class `0x80d`, constructor `0x427d40`) is created per player in HUD constructor `0x4280f0` at (panel X + 6, 41) inside bar 117 (y = 495). Player panel X comes from table `0x4af924` = 12, 149, 556, 693. Drawing `0x4278c0` copies, for each active bit (0 eye, 1 shield, 2 bullet; messages `0xee`/`0xef`), a cut-out of bitmap 78 to the same relative position: eye x 25–36, shield 0–11, bullet 13–23, height 14.
 
-## Aktualizace 28. 10. 2026: střelba na stisk a hloubka střel
+## Update 28 Oct 2026: fire on press and shot depth
 
-**Střelba na stisk.** Vstup hráče (`0x416020`) projde šest kláves; `0x4121a0` porovná stav DirectInputu s předchozím snímkem a vrátí 0 beze změny, 1 stisk, 2 puštění. Příkaz 4 (střelba) se tak posílá jen při stisku a `0x4208c0` vystřelí, jen když je zbraň v tu chvíli nečinná. Držená klávesa neopakuje. Web dřív střílel při držení dokola, takže otočení během běhu (které ruší animaci zbraně) hned vystřelilo znovu opačným směrem.
+**Fire on press.** Player input (`0x416020`) walks six keys; `0x4121a0` compares DirectInput state with the previous frame and returns 0 unchanged, 1 press, 2 release. Command 4 (fire) is thus sent only on a press and `0x4208c0` fires only if the weapon is idle at that moment. A held key does not repeat. The web used to fire repeatedly while held, so turning while running (which cancels the weapon animation) immediately fired again in the opposite direction.
 
-**Hloubka střel.** `CShot` je objekt scény s hloubkou 15 (`0x41ef02` → `0x418fe0`), vodorovná brokovnice −5 za krok. Web ji nově řadí s postavami a kulisami (klíč = spodní hrana + hloubka), takže střela v domečku-muchomůrce zmizí pod kloboukem a vyletí okénkem ven, místo aby se kreslila přes střechu. Kolize domečku jsou jen dvě skriptové (`320:0x21b` základna, `0x239` pás pod střechou), místnost mezi nimi je zleva i zprava průstřelná („Chaloupka je průstřelná z obou stran“, dobový návod).
+**Shot depth.** `CShot` is a scene object with depth 15 (`0x41ef02` → `0x418fe0`), horizontal shotgun −5 per step. The web now sorts it with characters and scenery (key = bottom edge + depth), so a shot in the mushroom house disappears under the cap and flies out through the window instead of being drawn over the roof. The house has only two scripted collisions (`320:0x21b` base, `0x239` strip below the roof); the room between them can be shot through from both sides ("the cottage can be shot through from both sides", period manual).
 
-## Aktualizace 28. 10. 2026: vykreslování ve FullHD/4K
+## Update 28 Oct 2026: FullHD/4K rendering
 
-Logický snímek zůstává původních 800×600 (bojiště 800×515 + HUD). Buffer canvasu nově sleduje skutečnou velikost na obrazovce × devicePixelRatio (do 6×), kreslí se s transformací na logické souřadnice (`dist/display.js`). Text a HUD jsou ostré, původní bitmapy se zvětšují až při kreslení: vyhlazeně, nebo s ostrými pixely (tlačítko „Obraz“, uloženo v prohlížeči). Assets se nemění. Ověření `verify-display.mjs` (1920×1080, 3840×2160, 1280×720 @2×).
+The logical frame stays the original 800×600 (battlefield 800×515 + HUD). The canvas buffer now follows the real on-screen size × devicePixelRatio (up to 6×), drawing with a transform to logical coordinates (`dist/display.js`). Text and HUD are sharp; original bitmaps scale only when drawn, smoothed or with sharp pixels (the "Obraz" button, saved in the browser). Assets do not change. Verified by `verify-display.mjs` (1920×1080, 3840×2160, 1280×720 @2×).
 
-## Aktualizace 28. 10. 2026: typy hry (na zásahy / na čas / na životy)
+## Update 28 Oct 2026: game types (hits / time / lives)
 
-Zdroj: dialog `CGameTypeDlg` (`0x40d930`), objekt pravidel `CBulanci+0x284` (konstruktor `0x414a80`), tabulka textů `0x4af9bc` (indexy 49–61, 93–96).
+Source: dialog `CGameTypeDlg` (`0x40d930`), rules object `CBulanci+0x284` (constructor `0x414a80`), text table `0x4af9bc` (indices 49–61, 93–96).
 
-- Uložené nastavení (14 B od `+0x87`, čtené z registru `Software\SleepTeam\Bulanci` v `0x40a440`): typ (0 zásahy, 1 čas, 2 životy), příznak `+0x88`, limity `+0x89 + typ·4`. Bez uloženého nastavení `0x40a290`: typ 1, **zásahy 30, čas 180 s, životy 30**.
-- Rozsahy polí v dialogu (`0x407d50`): zásahy 5–999, čas 10–9999 s, životy 5–999.
-- **Trénink** (jeden hráč, `config+0xd8 == 1`, `0x4136df`): vždy „na čas“, 150 s.
-- Hodiny se spouštějí jen u typu „na čas“ (`0x41c185` → `0x4129c0`).
-- Body na liště (`0x412680`): zásahy = počet zásahů; čas = zásahy − smrti; životy = limit − smrti.
-- Zásah (`0x420dd6` → `0x4180e0`) se počítá, je-li oběť bulánek (třída `0x7ec`); „na zásahy“ končí, když vedoucí člověk dosáhne limitu (zpráva `0x80cc`).
-- Smrt (`0x41f350` → `0x4128a0`): „na životy“ při dosažení limitu zapíše pořadí vyřazení; vyřazený se po animaci smrti už neobnoví (`0x417abd`); hra končí, když zbývá nejvýš jeden člověk.
-- Pořadí (`0x4126e0`): podle bodů, vyřazení podle toho, jak pozdě vypadli. Výsledky používají původní texty „Zabil: %dx“ a „Mrtev: %dx“.
-- Neověřeno: význam příznaku `+0x88` (výchozí 1, v tréninku vynucen 1, mění stav hry `+0x368` na 6) a zobrazení středu lišty u typů bez hodin (web ho nechává prázdný).
+- Saved settings (14 bytes from `+0x87`, read from registry `Software\SleepTeam\Bulanci` in `0x40a440`): type (0 hits, 1 time, 2 lives), flag `+0x88`, limits `+0x89 + type·4`. Without saved settings `0x40a290`: type 1, **hits 30, time 180 s, lives 30**.
+- Dialog field ranges (`0x407d50`): hits 5–999, time 10–9999 s, lives 5–999.
+- **Training** (one player, `config+0xd8 == 1`, `0x4136df`): always time-based, 150 s.
+- The clock starts only for the time type (`0x41c185` → `0x4129c0`).
+- Points on the bar (`0x412680`): hits = number of hits; time = hits − deaths; lives = limit − deaths.
+- A hit (`0x420dd6` → `0x4180e0`) counts if the victim is a bulánek (class `0x7ec`); the hits type ends when the leading human reaches the limit (message `0x80cc`).
+- Death (`0x41f350` → `0x4128a0`): in the lives type, reaching the limit records the order of elimination; an eliminated player does not return after the death animation (`0x417abd`); the game ends when at most one human remains.
+- Ranking (`0x4126e0`): by points, eliminated players by how late they dropped out. Results use the original texts "Zabil: %dx" and "Mrtev: %dx".
+- Not verified: the centre of the bar for types without a clock (the web leaves it empty).
 
-Web: `dist/rules.js`, menu „Typ hry“ s limitem; testy `test/rules.test.mjs`.
+Web: `dist/rules.js`, menu "Typ hry" with a limit; tests `test/rules.test.mjs`.
 
-## Aktualizace 28. 10. 2026: spawn zbraní
+## Update 28 Oct 2026: weapon spawns
 
-Nahrazuje dřívější pracovní implementaci (čtyři zbraně od startu, návrat po 8 s, sebrání do 22 px od středu).
+Replaces the earlier working implementation (four weapons from the start, return after 8 s, pickup within 22 px of the centre).
 
-- Příznak nastavení `+0x88` („všechny zbraně“, výchozí 1, v tréninku vynucen) dává `hra+0x368 = 6`, jinak 2 (`0x420117`).
-- Timer1 herního objektu (`0x41c1f6`) se vytvoří jen při `+0x368 > 2`: opakovaně po **5000 ms**, v tréninku po **10 000 ms**. Na začátku kola nic neleží.
-- Tik (`0x41f083`): `rand·101 < 80`, pak volba `0x41e350`: `r = floor(rand·125)/25 + 1`, `r ≥ 3` → `r + 1` (bez detonátoru). Výsledek brokovnice / mina / samopal / raketomet / nic, každý 1/5; leží-li už brokovnice, padne samopal.
-- Sloty (`0x41e2c0`): brokovnice jediná (`0x64`), ostatní první volný z `0x65`–`0x6b` (nejvýš 7). Umístění `0x41b390` → `0x41a140` (náhodné volné místo).
-- Sebrání (`0x41f0c0`): překryv kolizního obdélníku postavy s obdélníkem animace 179/268/222/219 (52×24, 25×26, 52×22, 52×31); sbírá každá postava řízená tímto počítačem (`0x416720`), tedy i boti a nemrtví. `0x41eba0`: předmět zmizí natrvalo; mina +1 do 4, ostatní kapacita z `0x481a60` [5,4,4,1,4,2] a výběr zbraně (`0x41ea90`, u nemrtvých bez účinku).
-- **Oprava:** příznak `+0x88` je „Mód zbraní“ (texty `0x1b0`–`0x1b8`): 1 = **všechny zbraně**, 0 = **pouze brokovnice**. Režim „jen pistole“ originál nemá. V režimu „pouze brokovnice“ (`+0x368 = 2`) neběží timer1; na začátku hry (ne v tréninku) se položí jediná brokovnice (`0x4202f6` → `0x41f1d0`), sebrání nastaví hráči `+0x16b` (`0x41ec48`) a brokovnice se vrátí na mapu, když ji držitel vystřílí (konec animace, `0x42151c`) nebo zemře (`0x41fb3a`). Trénink vynucuje všechny zbraně.
-- Smrt člověka (`0x41f900`, postava bez senzorů): návrat k pistoli, munice typů 1–5 = 0, **náboje pistole zůstávají** i po respawnu.
+- Setting flag `+0x88` ("all weapons", default 1, forced in training) gives `game+0x368 = 6`, otherwise 2 (`0x420117`).
+- Timer1 of the game object (`0x41c1f6`) exists only with `+0x368 > 2`: repeating every **5000 ms**, in training every **10,000 ms**. Nothing lies on the field at the start of a round.
+- Tick (`0x41f083`): `rand·101 < 80`, then choice `0x41e350`: `r = floor(rand·125)/25 + 1`, `r ≥ 3` → `r + 1` (no detonator). Result shotgun / mine / SMG / rocket launcher / nothing, each 1/5; if a shotgun already lies there, an SMG drops.
+- Slots (`0x41e2c0`): one shotgun (`0x64`), others first free of `0x65`–`0x6b` (at most 7). Placement `0x41b390` → `0x41a140` (random free place).
+- Pickup (`0x41f0c0`): overlap of the character's collision rectangle with the rectangle of animation 179/268/222/219 (52×24, 25×26, 52×22, 52×31); any character controlled by this computer collects (`0x416720`), including bots and undead. `0x41eba0`: the item disappears for good; mine +1 up to 4, others capacity from `0x481a60` [5,4,4,1,4,2] and weapon selection (`0x41ea90`, no effect for undead).
+- **Correction:** flag `+0x88` is "Mód zbraní" (texts `0x1b0`–`0x1b8`): 1 = **all weapons**, 0 = **shotgun only**. The original has no pistol-only mode. In shotgun-only mode (`+0x368 = 2`) timer1 does not run; one shotgun is placed at game start (not in training) (`0x4202f6` → `0x41f1d0`), pickup sets the player's `+0x16b` (`0x41ec48`), and the shotgun returns to the map when its holder empties it (end of animation, `0x42151c`) or dies (`0x41fb3a`). Training forces all weapons.
+- Human death (`0x41f900`, a character without sensors): back to the pistol, ammunition of types 1–5 = 0, **pistol rounds remain** even after respawn.
 
-Web: `dist/pickups.js`; testy `test/pickups.test.mjs`. Kontrola `verify-audio.mjs` nyní střílí stisky (střelba se v originálu spouští stiskem, ne držením).
+Web: `dist/pickups.js`; tests `test/pickups.test.mjs`. `verify-audio.mjs` now fires with presses (the original fires on a press, not on hold).
 
-## Aktualizace 29. 10. 2026: animace scény a vítr v Malárii
+## Update 29 Oct 2026: scene animations and wind in Malárie
 
-**Příznaky animace.** `create_animation` (opcode `0x2d`, handler `0x41d6e0`) čte po x, y ještě bajt příznaků, který dřívější dekodér nevypisoval. `0x4391e0` ho uloží do `anim+0xc`: bit 0 hraje, bit 1 smyčka. Vybíjená (DJ 216/217) a kouř Noční směny 244 mají 3 (smyčka), všech osm animací Malárie i objekt 245 Noční směny mají 0, tedy stojí na snímku 0. Kouř 244 na (701,180) ve vrstvě 0 web dříve vůbec nekreslil; DJ je ve vrstvě 0, tedy pod postavami.
+**Animation flags.** `create_animation` (opcode `0x2d`, handler `0x41d6e0`) reads, after x and y, one flags byte the earlier decoder did not show. `0x4391e0` stores it in `anim+0xc`: bit 0 plays, bit 1 loops. Vybíjená (DJ 216/217) and Noční směna smoke 244 have 3 (loop), all eight animations of Malárie and Noční směna object 245 have 0, so they stand on frame 0. Smoke 244 at (701,180) in layer 0 was previously not drawn at all; the DJ is in layer 0, so below characters.
 
-**Přehrání jednou.** Nativ `0x50` (`0x416dc0` → `0x4390d0`) s parametrem 0 nastaví „hraje“ bez smyčky. Časovač snímků `0x439b90` ukáže snímek podle čítače, posune ho a při přetečení na 0 bez smyčky zastaví; zůstane vidět poslední snímek. Snímek k trvá ⌊(k+1)·D/N⌋ − ⌊k·D/N⌋ ms (`0x4399b0`).
+**Play once.** Native `0x50` (`0x416dc0` → `0x4390d0`) with parameter 0 sets "playing" without a loop. Frame timer `0x439b90` shows the frame by its counter, advances it and on overflow to 0 without a loop stops; the last frame stays visible. Frame k lasts ⌊(k+1)·D/N⌋ − ⌊k·D/N⌋ ms (`0x4399b0`).
 
-**Malárie (322).** Blok `0x93` volá `timer_create(0, rand(0..10)·1000 + 5000, 6)`. Třetí argument jsou příznaky časovače, ne callback: 2 = start teď, 4 = opakovat se stejnou periodou (plánovač `0x42eb30`). Všechny časovače skriptu volají vstup 6 (blok `0x284`), který přehraje objekty 6–13, tedy všech osm animací naráz: poryv větru v listí a kapradí každých 5–15 s (perioda se losuje jednou za level). Pořadí vykreslení vrstvy 2 odpovídá pořadí vložení ve skriptu (objekt 13 nad bitmapou 92).
+**Malárie (322).** Block `0x93` calls `timer_create(0, rand(0..10)·1000 + 5000, 6)`. The third argument is timer flags, not a callback: 2 = start now, 4 = repeat with the same period (scheduler `0x42eb30`). All script timers call entry 6 (block `0x284`), which plays objects 6–13, i.e. all eight animations at once: a gust of wind in the leaves and ferns every 5–15 s (the period is drawn once per level). Layer 2 drawing order follows the insertion order in the script (object 13 above bitmap 92).
 
-Web: `dist/scene-anims.js`, data `analysis/patch_scene_animations.py` → `maps.json` (`flags`, `layer`, `frames`, `duration_ms`); testy `test/scene-anims.test.mjs`.
+Web: `dist/scene-anims.js`, data in `maps.json` (`flags`, `layer`, `frames`, `duration_ms`); tests `test/scene-anims.test.mjs`.
 
-**Jeřáb v Noční směně (321).** Objekt 6 = animace 245 (120 snímků, 8591 ms), jeřáb s bednou. Časovače skriptu: `0x42f210` (příznak 1 = pozastaven s počítadlem 1), nativ `0x45` obnoví (počítadlo −1, při 0 start = teď), `0x46` pozastaví, `0x48` nastaví periodu. Vstup 10 volá start kola (`0x41c140`), vstup 3 je událost animace (`0x418260`: id objektu, hodnota chunku 12; zastavení běžící animace v `0x439840` posílá 0xffff). Průběh:
-- start kola → `0x565`: perioda 30 000 + rand(0..6)·5000 ms, obnovit časovač 0;
-- výstřel časovače → `0x6f6`: přehrát jeřáb jednou, `object_event(0,255)` = vzorek 0 banky levelu bez pozice (`0x418000`), pozastavit časovač;
-- snímek 60, událost 0 (bedna v peci, mimo obraz vpravo) → `native_40` jeřáb zastaví; jeho 0xffff znovu vstoupí do `0x565` a časovač obnoví, hned potom `native_48(0,10000)`: jeřáb tam visí 10 s;
-- další výstřel jeřáb rozjede dál nahoru a pozastaví časovač; poslední snímek → 0xffff → další čekání 30–60 s.
-Pohyb jeřábu je z chunků 10 (posun objektu za každý zobrazený snímek, observer `0x436e80`).
+**Crane in Noční směna (321).** Object 6 = animation 245 (120 frames, 8591 ms), a crane with a crate. Script timers: `0x42f210` (flag 1 = paused with counter 1), native `0x45` resumes (counter −1, at 0 start = now), `0x46` pauses, `0x48` sets the period. Entry 10 calls round start (`0x41c140`), entry 3 is an animation event (`0x418260`: object id, chunk 12 value; stopping a running animation in `0x439840` sends 0xffff). Sequence:
+- round start → `0x565`: period 30,000 + rand(0..6)·5000 ms, resume timer 0;
+- timer fires → `0x6f6`: play the crane once, `object_event(0,255)` = sample 0 of the level bank with no position (`0x418000`), pause the timer;
+- frame 60, event 0 (crate in the furnace, off screen right) → `native_40` stops the crane; its 0xffff re-enters `0x565` and resumes the timer, then right after `native_48(0,10000)`: the crane hangs there for 10 s;
+- the next firing runs the crane on upward and pauses the timer; last frame → 0xffff → another 30–60 s wait.
+The crane's movement comes from chunks 10 (object offset per displayed frame, observer `0x436e80`).
 
-**Žádná ochrana po spawnu.** Respawn `0x41f770` postavu jen zviditelní (`0x42c990`, bit 1 v `+0x44`), postaví na místo (`0x41a140`), natočí (`0x4197b0`) a přehraje zvuk; žádný časovač nesmrtelnosti ani zákazu střelby. Střelba `0x4208c0` vyžaduje jen viditelnou postavu a nečinnou animaci zbraně. Web dříve po spawnu blokoval střelbu na 0,5 s; nyní ne (test v `test/game.test.mjs`).
+**No spawn protection.** Respawn `0x41f770` only makes the character visible (`0x42c990`, bit 1 in `+0x44`), places it (`0x41a140`), turns it (`0x4197b0`) and plays a sound; there is no invulnerability or firing timer. Firing `0x4208c0` requires only a visible character and an idle weapon animation. The web used to block firing for 0.5 s after spawn; no longer (test in `test/game.test.mjs`).
 
-**Světla Vybíjené (319).** Skript končí `native_34(2)` + `create_bitmap(0,0)` res 21. Je to t28 v režimu 0 (1 bit na pixel, stride = šířka/8), paleta s jedinou černou barvou a 8bitový alfa kanál (délka 30 + 4 + 51 500 + 412 000 B sedí přesně). Vrstva leží nad vším včetně postav: parket je tmavý mimo kužely reflektorů. Web ji dříve vynechával; export `analysis/export_disco_light.py`.
+**Vybíjená lights (319).** The script ends with `native_34(2)` + `create_bitmap(0,0)` res 21. It is a t28 in mode 0 (1 bit per pixel, stride = width/8), a palette with a single black colour and an 8-bit alpha channel (length 30 + 4 + 51,500 + 412,000 B fits exactly). The layer lies above everything including characters: the dance floor is dark outside the spotlight cones. The web used to skip it.
 
-**Barel v Noční směně.** Kontrola všech `create_bitmap` skriptů proti datům webu našla jedinou chybějící bitmapu: 86 na (129,99), vrstva 1, `native_31(…, −110)`. Jde o barel, který se řadí s postavami podle spodní hrany + z (jako kulisy Exitu), takže postava nad ním je zakrytá. Čtyři bitmapy vrstvy 2 zůstávají nahoře. Export `analysis/export_factory_mid.py`.
+**Barrel in Noční směna.** Checking all script `create_bitmap` calls against web data found one missing bitmap: 86 at (129,99), layer 1, `native_31(…, −110)`. It is a barrel sorted with characters by bottom edge + z (like Exitus scenery), so a character above it is covered. The four layer 2 bitmaps stay on top.
 
-**Příznak konfigurace `+0x86`.** Výchozí 1 (`0x413542`). `0x412780` projde tabulku účastníků hry (`+0x168`, 13 B na záznam, počet `+0xda`; lokální záznam zapisuje `0x412720` z `+0x31/+0x35/+0x36/+0x37`) a příznak vynuluje, pokud má kterýkoli účastník bajt `+4` menší než 11. Při nule `0x420121` ponechá stav hry 2 (jen brokovnice) i při módu „všechny zbraně“ (`+0x19d`, kopie uloženého `+0x88`) a `0x412d6a` neodešle síťovou zprávu. Jde tedy o bránu kompatibility účastníků síťové hry (inference: hodnota +4 je zřejmě verze programu); v lokální hře je vždy 1 a web se tak chová.
+**Configuration flag `+0x86`.** Default 1 (`0x413542`). `0x412780` walks the table of game participants (`+0x168`, 13 B per record, count `+0xda`; the local record is written by `0x412720` from `+0x31/+0x35/+0x36/+0x37`) and clears the flag if any participant has byte `+4` below 11. At zero `0x420121` keeps game state 2 (shotgun only) even in all-weapons mode (`+0x19d`, a copy of saved `+0x88`) and `0x412d6a` sends no network message. It is thus a compatibility gate for network participants (inference: value +4 is presumably the program version); in a local game it is always 1 and the web behaves that way.
 
-**Pořadí senzorů.** `0x41b5a0` (volá se pro pohnutou postavu) prochází pole senzorů a regionů `+0x2d8` (počet `+0x2e0`) od posledního vytvořeného k prvnímu a každému předá zprávu přes `0x419e90` (id postavy, obdélník, neviditelnost `+0x198`). Při současném vstupu do více senzorů tedy reaguje nejdřív naposled vytvořený (soupeř s vyšším id, region s vyšším indexem). Ve webu by se pořadí projevilo jen sledem volání RNG; web neemuluje posloupnost `rand()` z MSVC, takže rozdíl není pozorovatelný a logika se neměnila.
+**Sensor order.** `0x41b5a0` (called for a moved character) walks the sensor and region array `+0x2d8` (count `+0x2e0`) from last created to first and passes each a message through `0x419e90` (character id, rectangle, invisibility `+0x198`). On simultaneous entry into several sensors the last created reacts first (the opponent with the higher id, the region with the higher index). In the web the order would only show in the sequence of RNG calls; the web does not emulate the MSVC `rand()` sequence, so the difference is not observable and the logic was not changed.
 
-## Aktualizace 29. 10. 2026: síťová hra přes WebSockety
+## Update 29 Oct 2026: network game over WebSockets
 
-Originál zakládal relaci DirectPlay (Start hry 1: Hru Vytvořit / Připojit se, „Způsob připojení“ TCP/IP nebo IPX); autoritou je počítač, který hru vytvořil (nativ `0x4a` ve skriptech). Web místo DirectPlay používá WebSocket na serveru, který stránku podává (`net-server.mjs`, cesta `/net`, bez závislostí): server jen vede seznam her a přeposílá zprávy. Prohlížeč hosta počítá hru se všemi hráči, ostatní posílají klávesy (při každé změně, s počítadlem stisků, aby se krátké ťuknutí mezi dvěma tiky neztratilo) a kreslí snímky stavu, které host posílá každý druhý tik (30 Hz), spolu se zvukovými událostmi.
+The original created a DirectPlay session (Start hry 1: Vytvořit / Připojit se, connection TCP/IP or IPX); the authority is the computer that created the game (native `0x4a` in scripts). Instead of DirectPlay the web uses a WebSocket on the server that delivers the page (`net-server.mjs`, path `/net`, no dependencies): the server only keeps the game list and relays messages. The host's browser computes the game with all players, the others send keys (on every change, with a press counter so a short tap between two ticks is not lost) and draw state snapshots the host sends every second tick (30 Hz), along with sound events.
 
-Obrazovky podle originálu: Start hry 1 povolí „Připojit se“ a TCP/IP (IPX ne); síťová hra vznikne volbou Vytvořit s méně hráči na tomto počítači než celkem (až 4), nebo Připojit se. Připojení: CTcpIpConfig (`0x40c060`, text 0x7c; prázdná adresa = tento server), CSessionList (`0x40c2d0`, „Inicializuje se hledání...“, „Hledám hry...“, Připojit / Zrušit). Start hry 2 ukáže hráče ostatních počítačů v dalších sloupcích, chat `0x4102d0` na (240,244) (seznam 250,270–510,410, řádek 250,418–510,450, písmo 175, 120 znaků) a „Čekám na zbytek hráčů...“ (0xfc). Start má jen host, až jsou všichni připojeni; platí kontrola stejných jmen napříč počítači (`0x40f610`). Hlášky: odmítnutí pro příliš mnoho hráčů (0x160), „Někdo z hráčů opustil hru.“ (0x6c).
+Screens follow the original: Start hry 1 enables Připojit se and TCP/IP (not IPX); a network game comes from Vytvořit with fewer players on this computer than in total (up to 4), or from Připojit se. Connecting: CTcpIpConfig (`0x40c060`, text 0x7c; empty address = this server), CSessionList (`0x40c2d0`, with Připojit / Zrušit). Start hry 2 shows players of other computers in further columns, chat `0x4102d0` at (240,244) (list 250,270–510,410, line 250,418–510,450, font 175, 120 characters) and a waiting message (0xfc). Only the host can start, once everyone is connected; the same-name check applies across computers (`0x40f610`). Messages: rejection for too many players (0x160), a player leaving (0x6c).
 
-Server je ve výchozím stavu jen na 127.0.0.1; pro hru po LAN se spouští s `BULANCI_HOST=0.0.0.0`. Web: `dist/net.js`, `dist/ui/net-dialogs.js`; testy `test/net-server.test.mjs`, `test/net.test.mjs`; kontrola dvou prohlížečů `verify-network.mjs`.
+By default the server listens only on 127.0.0.1; for LAN play start it with `BULANCI_HOST=0.0.0.0`. Web: `dist/net.js`, `dist/ui/net-dialogs.js`; tests `test/net-server.test.mjs`, `test/net.test.mjs`; two-browser check `verify-network.mjs`.
 
+## Update 31 Oct 2026: animation alpha plane and asset audit
 
-## Aktualizace 31. 10. 2026: alfa plán animací a audit assetů
+t52 chunks 14 and 15 (`0x432dd5`, `0x432def`) unpack, with the same routines as the image (`0x432740`, `0x432780`), an alpha plane w×h into bitmap `+0x20`. The export used to drop them, so shadows (black, index 0, alpha 95–96) and smoke with soft transitions (alpha 0–254) were opaque. Blending is per channel through table `0x4b84f8` in 565; the web uses normal canvas alpha compositing, without the 565 rounding.
 
-Chunky t52 14 a 15 (`0x432dd5`, `0x432def`) rozbalují stejnými rutinami jako obraz (`0x432740`, `0x432780`) alfa plán w×h do bitmapy `+0x20`. Export je dřív zahazoval, takže stíny (černá, index 0, alfa 95–96) a kouř s plynulými přechody (alfa 0–254) byly neprůhledné. Míchání je po kanálech přes tabulku `0x4b84f8` v 565; web používá běžné alfa skládání canvasu, bez zaokrouhlení 565.
-
-`analysis/audit_asset_alpha.py` porovná všechny sprity a bitmapy t28 s přesným dekódem z EXE; `analysis/fix_sprite_alpha.py` přepíše jen rozdílná PNG a nesahá na manifest.
-
-Otevřené rozdíly: HUD není port originálu. Konstruktor `0x4280f0` vytváří panely jen podle `config+0xd8` (lidští hráči) na X z `0x4af924`; web kreslí panel i soupeřům a vlastní texty. Chybí portrét, počítadlo a ikona zbraně (bitmapy 22, 29, 128, 169, 172, fonty 174 a 175). Čas originál píše jako sekundy v obdélníku (358, 45, 444, 95), web jako m:ss. Text nápovědy nad hrou je doplněk webu.
+Open differences: the HUD is not a port of the original. Constructor `0x4280f0` creates panels only by `config+0xd8` (human players) at X from `0x4af924`; the web draws panels for opponents too, with its own texts. The portrait, counter and weapon icon are missing (bitmaps 22, 29, 128, 169, 172, fonts 174 and 175). The original writes time as seconds in the rectangle (358, 45, 444, 95), the web as m:ss. The hint text above the game is a web addition.

@@ -1,75 +1,63 @@
-# Původní audio: přiřazení a napojení webu
+# Original audio: assignment and web integration
 
-Zdroj: `bulanci_hra/bulanci.exe`, resources t48/t43/t67. Extrakce je statická, hra se nespouštěla. Původní MP3 stream začíná na offsetu **20**, nikoli 16; starší export obsahoval navíc DWORD se vzorkovací frekvencí. Opravené soubory jsou v `web/dist/assets/original/music/`.
+Source: `bulanci.exe`, resources t48/t43/t67. Extraction is static; the game was not run. The original MP3 stream starts at offset **20**, not 16.
 
-## Hudba
+## Music
 
-Přiřazení čte `analysis/recover_audio_catalog.py` přímo z dekódovaných instrukcí `set_audio` v šesti původních skriptech. Neodvozuje se z názvu souboru.
+The assignment is read directly from decoded `set_audio` instructions in the six original scripts. It is not derived from file names.
 
-| Level / obrazovka | MP3 resource | Další zvuková banka |
+| Level / screen | MP3 resource | Extra sound bank |
 |---|---:|---:|
-| Vybíjená | 325 | žádná |
+| Vybíjená | 325 | none |
 | Na dobrou noc | 332 | 1 |
 | Noční směna | 327 | 2 |
-| Malárie | 333 | žádná |
+| Malárie | 333 | none |
 | V zajetí 8-bitu | 328 | 0 |
-| Exitus | 326 | žádná |
-| Menu den | 329 | — |
-| Menu noc | 330 | — |
-| Pauza | 331 | — |
+| Exitus | 326 | none |
+| Menu, day | 329 | — |
+| Menu, night | 330 | — |
+| Pause | 331 | — |
 
-Menu resources jsou přímo použité na `0x425301` a `0x42531a`, pauza na `0x420148`. Automatická volba den/noc v prohlížeči používá hodiny počítače (noc 20–6); původní práh přepnutí nebyl potvrzen. Po pauze pokračuje hudba levelu z původní pozice, nová hra začíná skladbu od začátku.
+Menu resources are used directly at `0x425301` and `0x42531a`, pause at `0x420148`. The day/night threshold is in `ui-re.md`. After a pause the level music continues from its position; a new game starts the track from the beginning.
 
-## Efekty a hlasy
+## Effects and voices
 
-Globální banka je resource **4**, nikoli banka 0: inicializace `0x402b65` načítá `0x10004` a zapisuje ji do `CBulanci+0x4c0`; `0x422430` ji používá pro nulový argument banky.
+The global bank is resource **4**, not bank 0: initialisation `0x402b65` loads `0x10004` and writes it to `CBulanci+0x4c0`; `0x422430` uses it for a zero bank argument.
 
-| Událost | Banka / sample | Důkaz |
+| Event | Bank / sample | Evidence |
 |---|---|---|
-| Pistole | 4 / 21 | příznak výstřelu 0x10, `0x41f303` |
-| Brokovnice | 4 / 13 | příznak 0x20, `0x41f2fc` |
-| Samopal | 4 / 19 | příznak 0x40, `0x41f2f5` |
-| Dokončené nabití | 4 / 16 | `0x4175b8` |
-| Konec kola | 4 / 17 | `0x41d64c` |
-| Sebrání | 4 / 18 | `0x419d99` |
-| Zásah / smrt | 4 / 23 | `0x41f9a5` |
-| Zásah raketou | 4 / 22 | `0x41f9b3` |
+| Pistol | 4 / 21 | shot flag 0x10, `0x41f303` |
+| Shotgun | 4 / 13 | flag 0x20, `0x41f2fc` |
+| Reload finished | 4 / 16 | `0x4175b8` |
+| Round end | 4 / 17 | `0x41d64c` |
+| Pickup | 4 / 18 | `0x419d99` |
+| Hit / death | 4 / 23 | `0x41f9a5` |
+| Rocket hit | 4 / 22 | `0x41f9b3` |
 | Teleport | 4 / 36 | `0x41db6c` |
-| Exploze | 3 / 1 | `0x41cf4c..0x41cf65`, level banka `0x4b3730` inicializovaná resource3 |
+| Explosion | 3 / 1 | `0x41cf4c..0x41cf65`, level bank `0x4b3730` initialised from resource 3 |
 
-Pozor: dřívější přiřazení samopalu k sample7 by přehrávalo hlas! Specializované střely NPC používají jiné banky a nesmějí se zaměňovat s výstřelem hráče.
+Specialised NPC shots use other banks and must not be confused with a player's shot.
 
-Čtyři původní hlasové profily:
+Four original voice profiles:
 
-- Návrat / objevení: `[1,4,7,10]`, tabulka `0x4aef98`, funkce `0x416670`.
-- Hláška po zásahu: `[3,6,9,12]`, tabulka `0x4aefa8`, funkce `0x416690`.
-- Další hláška: `[2,5,8,11]`, tabulka `0x4aef88`, funkce `0x4166b0`.
+- Return / appearance: `[1,4,7,10]`, table `0x4aef98`, function `0x416670`.
+- Line after a hit: `[3,6,9,12]`, table `0x4aefa8`, function `0x416690`.
+- Another line: `[2,5,8,11]`, table `0x4aef88`, function `0x4166b0`.
 
-V původním kódu se hláška po zásahu spouští po dokončení efektu zásahu; web dodržuje toto pořadí pomocí konce zvukového bufferu. Profil je možné předat přes `player.voiceSet` / `voiceProfile`; při absenci používá web pořadí hráče. Vyvolávání všech volitelných hlášek a NPC efektů závisí na událostech, které engine emituje. Audio API je podporuje; chybějící logika tvorů se tím sama nenahrazuje.
+In the original code the line after a hit starts once the hit effect has finished; the web keeps this order through the end of the sound buffer. A profile can be passed through `player.voiceSet` / `voiceProfile`; otherwise the web uses player order.
 
-Prostorové rozložení: `0x422500` počítá `clamp(xCenter,0,800)*3000/800-1500` v setinách dB. Web používá stejný útlum příslušného stereo kanálu.
+Stereo placement: `0x422500` computes `clamp(xCenter,0,800)*3000/800-1500` in hundredths of dB. The web uses the same attenuation of the matching stereo channel.
 
-## Souběžná práce
+## Web integration
 
-`app.js` ani `engine.js` se kvůli této změně neupravují. Modul `audio-bridge.js` obaluje existující `Game.update` a callback `onEvent`; změny stavů návratu/nabíjení sleduje bez zásahu do fyziky. Starý handler provizorních zvuků v app.js zůstává ztlumený tím, že audio přebírá tlačítko `#sound`.
+`audio-bridge.js` wraps the existing `Game.update` and the `onEvent` callback; it follows return and reload state changes without touching the physics.
 
-Samostatné soubory a veřejné API jsou popsané v `AUDIO-INTEGRATION.md`. Při publikaci se používá oddělený checkout z poslední publikované verze, aby se do nasazení nedostaly cizí rozpracované změny.
+## Menu and fullscreen
 
-## Ověření
+The original menu is 800×600. Illustrations 316/317/318 are anchored to the bottom-right corner (`0x425870`: 800−width, 600−height). Details of the menu are in `ui-re.md`.
 
-`web/verify-audio.mjs`: skutečný Chromium/Chrome/Edge dekódoval všech 9 skladeb a 62 PCM klipů; hudba všech 5 aktuálně dostupných map, hudba pauzy, návrat, vypnutí zvuku a uložení hlasitosti prošly bez chyb a HTTP404.
+Fullscreen uses the native Fullscreen API at 4:3 with black borders. The whole menu and HUD stay in view. If the API is refused, the page fills the browser window. Alt+Enter switches the mode. Monitor resolution changes neither map coordinates nor physics.
 
-`web/verify-menu-fullscreen.mjs`: navigace menu, historie, hlasitost v menu, Start, návrat z fullscreen a poměr4:3 ověřené při1920×1080,1920×1200,1280×1024,1366×768 a390×844.
+## SMG correction after verifying the original types (28 Oct 2026)
 
-## Menu a fullscreen
-
-Původní menu má rozměr800×600. Konstruktor `0x4267xx` vytváří kruhová tlačítka212/213 na(35,37),(35,121),(35,205); popisky jsou na(100,55),(100,139),(100,223), resources147/148,67/68,75/76. Pozadí315, ilustrace316/317/318 kotvené v pravém dolním rohu (`0x425870`:800−šířka,600−výška). Tyto hodnoty používá nový samostatný modulmenu.
-
-Historie čerpá textové literály přímo z původních resources307–309. Výběry nastavení hry používají funkční webové ovládací prvky pro režimy dostupné v aktuálním enginu; nejsou úplnou implementací všech původních dialogů a typografie. Vzhled navigace a grafika jsou původní, nelze zatím tvrdit úplnou shodu každého dialogu1:1.
-
-Fullscreen používá nativníFullscreenAPI s poměrem4:3 a černými okraji. Celé menu i HUD zůstávají v obraze. Alternativou při odmítnutíAPI je vyplnění okna prohlížeče. Alt+Enter přepíná režim; podporované je i běžné tlačítko a vlastní návrat ve fullscreen. Rozlišení monitoru nemění souřadnice map ani fyziku.
-
-
-## Oprava samopalu po ověření původních typů (28. 10. 2026)
-
-Samopal je původní typ4; animace 285–288 spouští čtyři střely v 71, 213, 355 a 497 ms. První tři používají banku3/sample3, poslední banku3/sample4. Banka4/sample19 je zvuk prázdné pistole. Raketomet typu5 používá banku3/sample7. Případné starší přiřazení sample19 k samopalu v tomto dokumentu je překonané tímto nálezem. Nemrtví Exitu používají stejný samopal; jejich flag smrti0x80 vynechává lidský zvuk smrti a hlas.
+The SMG is original type 4; animations 285–288 fire four shots at 71, 213, 355 and 497 ms. The first three use bank 3 / sample 3, the last bank 3 / sample 4. Bank 4 / sample 19 is the empty-pistol sound. The type 5 rocket launcher uses bank 3 / sample 7. Exitus undead use the same SMG; their death flag 0x80 skips the human death sound and voice.

@@ -82,18 +82,17 @@ After replacing the stream, `0x439eb0` calls `0x439b40`. It resets the stream an
 Actor+0x168 does not guard the weapon's event callback `0x4212b0`. Its relevant read at `0x41bf49` prevents the transient weapon layout change from calling `0x41af70` until body/weapon direction updates finish. A subsequent separate firing action can start a new burst in the new direction.
 
 
-## Doplnění: pickup, běžné stěny a konec paprsku
+## Addendum: pickup, plain walls and the end of a ray
 
-Pickup typu2 přidává jeden kus do maxima4 (`0x41ec89..0x41ec98`). Typ3 se v běžném
-náhodném generátoru přeskakuje (`0x41e397..0x41e3a1`). Automatický grant rozbušky při
-sebrání ani položení miny nebyl v těchto cestách nalezen; explicitní give typu3 vede
-přes `0x41eba0 →0x41ec1a`. Běžná implementace proto zůstává u tlakových min.
+A type 2 pickup adds one piece up to a maximum of 4 (`0x41ec89..0x41ec98`). The regular random generator skips
+type 3 (`0x41e397..0x41e3a1`). No automatic detonator grant on picking up or placing a mine was found in these
+paths; an explicit give of type 3 goes through `0x41eba0 → 0x41ec1a`. The regular implementation therefore stays
+with pressure mines.
 
-Nepojmenované překážky vytvořené native2f mají ID255 z `0x416590`; konstruktor
-`0x416fc0` ani vložení `0x41a390(obj,FF)` jej nemění. Právě tento ID se v `0x41b250`
-přeskakuje. Explicitně pojmenované objekty jsou jiný případ.
+Unnamed obstacles created by native 2f have ID 255 from `0x416590`; neither constructor `0x416fc0` nor insertion
+`0x41a390(obj,FF)` changes it. Exactly this ID is skipped in `0x41b250`. Explicitly named objects are a different case.
 
-Při zásahu hráče probe přes `0x41b330..0x41b377` obnovuje ukazatel ze scene slotu,
-nejvýše čtyřikrát. Běžný CBulanek v tom slotu zůstává i po smrti, a probe pak vrací
-true: paprsek se zastaví. Pro tento výbuch proto první zasažená postava zakrývá další
-postavu za sebou. Nový výbuch už z broadphase dostává její CDeath s ID255 a ten ignoruje.
+When a player is hit, the probe through `0x41b330..0x41b377` restores the pointer from the scene slot, at most four
+times. A regular CBulanek stays in that slot even after death, and the probe then returns true: the ray stops. For
+this explosion the first character hit therefore shields the next character behind it. A new explosion gets its
+CDeath with ID 255 from the broadphase and ignores it.

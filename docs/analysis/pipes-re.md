@@ -1,32 +1,30 @@
-# Noční směna: rozbor potrubí z původního EXE
+# Noční směna: pipe analysis from the original EXE
 
-## Výsledek
+## Result
 
-Propojení všech pěti rour, vstupní směry, výstupní souřadnice a dvousekundové zpoždění jsou obsažené přímo ve skriptu mapy resource321. Nejde o geometrii odhadnutou z obrázku ani pravidla převzatá z Android portu.
+The links of all five pipes, entry directions, exit coordinates and the two-second delay are stored directly in the script of map resource 321. This is not geometry estimated from the image, nor rules taken from the Android port.
 
-Reprodukovatelná extrakce: `python analysis/decode_pipes_script.py`. Strojový výstup: `analysis/pipes-re.json`. Skript čte původní `bulanci_hra/out/raw/00321_t2026.bin`; souřadnice a propojení neobsahuje jako ručně vložené konstanty.
-
-| ID | Vstupní obdélník (left,top,right,bottom) | Přijatý směr střely | Výstup | Výstupní směr |
+| ID | Entry rectangle (left,top,right,bottom) | Accepted shot direction | Exit | Exit direction |
 |---|---|---|---|---|
-| 10, vlevo nahoře | 136,17,168,27 | nahoru (2) | 500,440, vpravo dole | nahoru (2) |
-| 11, vpravo nahoře | 579,20,610,30 | nahoru (2) | 38,409, vlevo dole | doprava (1) |
-| 12, dole uprostřed | 447,450,477,460 | dolů (3) | 461,440, stejná roura | nahoru (2) |
-| 13, vpravo dole | 494,450,524,460 | dolů (3) | 150,29, vlevo nahoře | dolů (3) |
-| 14, vlevo dole | 26,390,36,431 | doleva (0) | 592,32, vpravo nahoře | dolů (3) |
+| 10, top left | 136,17,168,27 | up (2) | 500,440, bottom right | up (2) |
+| 11, top right | 579,20,610,30 | up (2) | 38,409, bottom left | right (1) |
+| 12, bottom centre | 447,450,477,460 | down (3) | 461,440, same pipe | up (2) |
+| 13, bottom right | 494,450,524,460 | down (3) | 150,29, top left | down (3) |
+| 14, bottom left | 26,390,36,431 | left (0) | 592,32, top right | down (3) |
 
-Vstupní obdélníky jsou half-open geometrické obdélníky jako jinde v enginu; přesná původní kolize probíhá přes bitmapový obdélník projektilu, nikoli matematický bod. Výstupní x,y jsou původní počátek obdélníku nově vytvářené střely (`CShot + 0x20/+0x24`), nikoli dodatečně odhadnutý střed roury.
+Entry rectangles are half-open geometric rectangles as elsewhere in the engine; the exact original collision goes through the projectile's bitmap rectangle, not a mathematical point. Exit x,y are the original origin of the rectangle of the newly created shot (`CShot + 0x20/+0x24`), not an estimated pipe centre.
 
-## Důkaz v datech
+## Evidence in the data
 
-Bytecode začíná na offsetu16 souboru resource. Rozpoznané záznamy `33 38 2f 00` skládají `add_to_scene(assign_object_id(rect(...), id))`:
+Bytecode starts at offset 16 of the resource file. Recognised records `33 38 2f 00` compose `add_to_scene(assign_object_id(rect(...), id))`:
 
-- raw0x23b: ID10;
-- raw0x257: ID11;
-- raw0x273: ID12;
-- raw0x28f: ID13;
-- raw0x2ab: ID14.
+- raw 0x23b: ID 10;
+- raw 0x257: ID 11;
+- raw 0x273: ID 12;
+- raw 0x28f: ID 13;
+- raw 0x2ab: ID 14.
 
-Switch v bytecode0x42a vybírá podle ID zasaženého objektu callbacky0x450,0x46c,0x488,0x4a4,0x4c0. Každý callback volá společnou funkci0x59a s cílovým indexem a požadovaným vstupním směrem:
+A switch at bytecode 0x42a selects callbacks 0x450, 0x46c, 0x488, 0x4a4, 0x4c0 by the ID of the hit object. Each callback calls shared function 0x59a with the target index and required entry direction:
 
 ```text
 10 -> on_pipe(3, owner, incoming_direction, 2, 10)
@@ -36,9 +34,9 @@ Switch v bytecode0x42a vybírá podle ID zasaženého objektu callbacky0x450,0x4
 14 -> on_pipe(1, owner, incoming_direction, 0, 14)
 ```
 
-Skriptové adresy jsou relativní k bytecode základně16. Branch cíle neobsahují úvodní počet lokálních proměnných; skutečné funkce volané opcode0x0e ho obsahují. Funkce0x59a má0 lokálních položek, funkce0x5d9 má1 položku a proto její parametry začínají indexem1.
+Script addresses are relative to bytecode base 16. Branch targets do not include the leading local variable count; real functions called by opcode 0x0e do. Function 0x59a has 0 local entries, function 0x5d9 has 1 and so its parameters start at index 1.
 
-Pseudokód potvrzené části0x59a:
+Pseudocode of the confirmed part of 0x59a:
 
 ```text
 if incoming_direction != accepted_direction: return 0
@@ -49,54 +47,54 @@ timer_user_data(id) = destination_index + (owner << 8)
 return 0
 ```
 
-Native0x41 / funkce0x418950 vysílá další původní událost do enginu přes0x418000; přesný význam signálu1/2 není v tomto rozboru uzavřený. Native0x4a /0x416d30 vrací test runtime flagu `script[0x45c][0x36] == 0`; podmínka odpovídá autoritativnímu zpracování v síťové hře. Výklad účelu flagu je inference, nikoli nalezený název proměnné.
+Native 0x41 / function 0x418950 sends another original event to the engine through 0x418000; the exact meaning of signals 1/2 is not settled here. Native 0x4a / 0x416d30 returns the test of runtime flag `script[0x45c][0x36] == 0`; the condition matches authoritative processing in a network game. That reading of the flag's purpose is an inference, not a recovered variable name.
 
-## Dvě sekundy nejsou odhad
+## Two seconds are not a guess
 
-Rozšířená tabulka opcode handlerů je na0x4af018. Konstruktor0x4185c0 ji registruje pro opcodes0x2d–0x66 přes0x438310. Handler0x44=0x416c00 čte tři argumenty a volá0x42f210.
+The extended opcode handler table is at 0x4af018. Constructor 0x4185c0 registers it for opcodes 0x2d–0x66 through 0x438310. Handler 0x44 = 0x416c00 reads three arguments and calls 0x42f210.
 
 `0x42f210(-1,2000,2)`:
 
-- při indexu-1 vyhradí nové časovací ID;
-- flags2 způsobí zapsání současné hodnoty časovače `0x4b3bd8` jako začátku;
-- period/delay2000 uloží do pole+4;
-- flag1 (pozastavený stav) není nastavený;
-- userdata+0x18 se následně nastaví handlerem0x51=0x4189b0.
+- with index -1 allocates a new timer ID;
+- flag 2 writes the current value of timer `0x4b3bd8` as the start;
+- period/delay 2000 is stored in field +4;
+- flag 1 (paused) is not set;
+- userdata +0x18 is then set by handler 0x51 = 0x4189b0.
 
-Scheduler0x42eb30 na0x42eb54–0x42eb62 porovnává `start + period <= current_time`. Poté zavolá callback. Flags2 nepovolují opakování (to používá bit4), takže jde o jednorázový výstřel po2000ms. Čas pochází z WinMM `timeGetTime` přes0x42e790.
+Scheduler 0x42eb30 at 0x42eb54–0x42eb62 compares `start + period <= current_time`, then calls the callback. Flag 2 does not allow repeating (bit 4 does that), so this is a single firing after 2000 ms. The time comes from WinMM `timeGetTime` through 0x42e790.
 
-## Roura nevytáhne původní vektor střely
+## The pipe does not carry over the original shot vector
 
-Výstupní switch dekóduje spodních8 bitů userdata jako cílový index. Pět větví volá funkci0x5d9 na bytecode adresách0x669,0x685,0x6a1,0x6bd,0x6d9 s parametry z výstupní tabulky výše.
+The exit switch decodes the low 8 bits of userdata as the target index. Five branches call function 0x5d9 at bytecode addresses 0x669, 0x685, 0x6a1, 0x6bd, 0x6d9 with parameters from the exit table above.
 
-Pseudokód funkce0x5d9:
+Pseudocode of function 0x5d9:
 
 ```text
 local_owner = packed_userdata >> 8
 spawn_shot(exit_x, exit_y, exit_direction, local_owner, flags=1)
 signal(2, local_owner + 10)
-// dále následují podmíněné operace síťového přenosu stavu
+// conditional network state transfer follows
 return 0
 ```
 
-Handler0x43=0x41f610 vytváří souřadnicovou dvojici a volá0x41f230. Ta při flags1 vytváří nový objekt CShot konstrukcí0x41edf0 s variantou0 (`(flags & 3) - 1`). Nevstupuje do ní původní rychlost, úhel rozptylu, stáří ani typ původního projektilu. Majitel střely se zachová díky horním bitům userdata. Webový port má tedy vytvářet nový základní projektil, nikoli okamžitě přenášet stejný vektor na jiné místo.
+Handler 0x43 = 0x41f610 builds a coordinate pair and calls 0x41f230. With flag 1 this creates a new CShot through 0x41edf0 with variant 0 (`(flags & 3) - 1`). The original speed, spread angle, age or projectile type do not enter it. The shot's owner survives thanks to the high bits of userdata. The web port should therefore create a new basic projectile, not move the same vector elsewhere.
 
-Původní CShot:
+Original CShot:
 
-- konstruktor0x41edf0 vytváří časovač `timer_create(0,50,6)` na0x41ef18–0x41ef1f;
-- flags6 zahrnují bit4 pro opakování a bit2 pro současný začátek;
-- callback0x419b40 provádí v příslušném směru krok40px, podle switch tabulky0x419c88;
-- nominálně tedy40px/50ms =800px/s, s diskrétním krokováním a čtyřmi podkroky kolizí v0x41de60.
+- constructor 0x41edf0 creates timer `timer_create(0,50,6)` at 0x41ef18–0x41ef1f;
+- flags 6 include bit 4 for repeating and bit 2 for an immediate start;
+- callback 0x419b40 makes a 40 px step in the given direction, by switch table 0x419c88;
+- nominally 40 px / 50 ms = 800 px/s, with discrete steps and four collision sub-steps in 0x41de60.
 
-## Zásah z nesprávné strany
+## A hit from the wrong side
 
-CShot0x41de60 při nalezení překážky volá0x41dd70 a pak **bezpodmínečně vrátí1** na0x41df54–0x41df59. Aktualizace0x41df60 označí projektil za neaktivní, případně vypne příslušný brok v masce. Vrácená nula skriptového handleru proto neznamená, že střela projde rourou bez kolize.
+CShot 0x41de60 calls 0x41dd70 on finding an obstacle and then **unconditionally returns 1** at 0x41df54–0x41df59. Update 0x41df60 marks the projectile inactive or disables the pellet in the mask. A zero returned by the script handler therefore does not mean a shot passes through a pipe without collision.
 
-Implementační důsledek: střela zasažená vstupním obdélníkem z nesprávného směru se spotřebuje a žádná výstupní se nevytvoří. Při správném směru se původní střela také spotřebuje; až za2s vznikne nová na určeném výstupu.
+Implementation consequence: a shot hitting the entry rectangle from the wrong direction is consumed and no exit shot appears. In the right direction the original shot is consumed too; a new one appears at the exit 2 s later.
 
-## Co stále vyžaduje další rozbor
+## What still needs analysis
 
-- Přesný zvukový / událostní význam native0x41 signal1 a signal2.
-- Plná synchronizace rour při síťové hře; zde ověřený lokální mechanismus pokrývá samotné spojení a časování.
-- Přesná bitmapová kolizní plocha projektilů a případné rozdíly při raketách/pelletech. Zachycený skript všem přijatým zásahům zadává flags1 pro nový výstupní projektil.
-- Původní engine používá diskrétní kroky40px a kolizní podkroky, nikoli plynulý pohyb, takže800px/s je nominální rychlost, ne důkaz shodné časové integrace v jiném enginu.
+- The exact sound or event meaning of native 0x41 signal 1 and signal 2.
+- Full pipe synchronisation in a network game; the verified local mechanism covers only the link and timing.
+- The exact bitmap collision area of projectiles and any differences for rockets and pellets. The script gives all accepted hits flag 1 for the new exit projectile.
+- The original engine uses discrete 40 px steps and collision sub-steps, not smooth motion, so 800 px/s is a nominal speed, not proof of identical time integration in another engine.

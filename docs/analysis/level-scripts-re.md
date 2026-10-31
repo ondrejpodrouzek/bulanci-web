@@ -1,109 +1,85 @@
-# Skripty levelů (CDSScript VM): rozbor a extrakce
+# Level scripts (CDSScript VM): analysis and extraction
 
-Hlavní zdroj: `bulanci_hra/out/raw/00319..00324_t2026.bin` (bytecode skriptů map) a
-rozšířená tabulka opcode handlerů na `0x4af018` v `bulanci.exe`. Program nebyl při
-analýze spouštěn. Dekodér je `analysis/decode_level_specials.py`, čitelný výstup
-`analysis/level-script-decoded/*.txt`, strojová extrakce herních faktů
-`analysis/extract_level_facts.py` → `analysis/level-facts.json`.
+Main source: map script bytecode (resources 319–324, type t2026) and the extended opcode handler table at
+`0x4af018` in `bulanci.exe`. The program was not run during analysis.
 
-## Formát a VM
+## Format and VM
 
-Každý resource `t2026` je program malého zásobníkového/expression VM. Hlavička:
-`uint32 kind(=2026), size, entry_count, globals_count`; následuje `size` bajtů kódu
-a `entry_count` vstupních offsetů. Bloky s hlavičkou nesou úvodní bajt `locals`
-(počet lokálních slotů). Volané funkce (`call`) s `locals=L` mají prvních `L`
-argumentových slotů jako lokální scratch; předané parametry proto začínají indexem
-`L` (shodně s dřívějším zjištěním u funkcí `0x59a`/`0x5d9` v `pipes-re.md`).
+Every `t2026` resource is a program for a small stack/expression VM. Header:
+`uint32 kind (=2026), size, entry_count, globals_count`; then `size` bytes of code and `entry_count`
+entry offsets. Blocks with a header carry a leading `locals` byte (number of local slots). Called
+functions (`call`) with `locals=L` have the first `L` argument slots as local scratch; passed
+parameters therefore start at index `L` (matching functions `0x59a`/`0x5d9` in `pipes-re.md`).
 
-Potvrzené opcode skupiny: konstanty a aritmetika (`const`, `random_inclusive`,
-`add/subtract/multiply/divide`, `min/max/clamp`, bitové), přístup k proměnným
-(`global`, `arg`, `set_global`, `set_arg`), řízení toku (`goto`, `call`, `if_*_goto`,
-`switch`, `return`) a nativní volání `0x2d–0x66`. Arity nativů pochází z handlerů
-(`analysis/level-vm-handlers.json`), dvě byly ověřeny ručně proti kódu
-(`0x49`=5, `0x53`=6).
+Confirmed opcode groups: constants and arithmetic (`const`, `random_inclusive`, `add/subtract/multiply/divide`,
+`min/max/clamp`, bitwise), variable access (`global`, `arg`, `set_global`, `set_arg`), flow control (`goto`,
+`call`, `if_*_goto`, `switch`, `return`) and native calls `0x2d–0x66`. Native arities come from the handlers;
+two were checked by hand against the code (`0x49`=5, `0x53`=6).
 
-## Nativní volání scény (potvrzeno z disassembly)
+## Scene native calls (confirmed from disassembly)
 
-| Opcode | Jméno | Význam |
+| Opcode | Name | Meaning |
 |---|---|---|
-| 0x2d | create_animation(x,y,flags,res[]) | animovaný objekt; flags bit0 hraje, bit1 smyčka (0x4391e0) |
-| 0x2e | create_bitmap(x,y,res) | statická bitmapa na (x,y) |
-| 0x2f | create_obstacle(l,t,r,b) | kolizní obdélník (half-open) |
-| 0x30 | set_object_rect(obj,l,t,r,b) | nastaví objektu lokální obdélník |
-| 0x33 | insert_scene(obj) | vloží objekt do scény |
-| 0x34 | select_layer(n) | zvolí aktivní rovinu scény (0 podlaha, 1 střed, 2 vršek/kolize) |
-| 0x35 | set_background(res) | výplňové pozadí okna (ne herní základ) |
-| 0x36 | set_audio(res,res) | hudba/ambient levelu |
-| 0x38 | associate_callback(obj,id) | naváže skriptový callback na objekt |
-| 0x3a | place(obj,x,y) | umístí objekt na základní (x,y); lokální obdélníky se posunou |
-| 0x31 | set_zorder(obj,n) | pořadí kreslení (záporné = dřív/vzadu) — *odvozeno z použití* |
-| 0x3e | get_object(id) | objekt podle id |
-| 0x41 | object_event(a,id) | vyšle událost objektu |
-| 0x43 | spawn_shot(x,y,dir,owner,flags) | vytvoří projektil (viz pipes-re.md) |
-| 0x44/0x45 | timer_create(id,ms,flags)/timer_cancel | flags 1 pozastaven, 2 start teď, 4 opakovat; callback vždy vstup 6 s id v arg0 |
-| 0x50 | play(obj,loop) | přehraje animaci (0x4390d0), loop=0 jednou a zastaví na posledním snímku |
-| 0x3b/0x3c | hide/show(obj) | skrytí/zobrazení objektu — *pár, odvozeno* |
-| 0x40 | trigger(obj) | spustí metodu podobjektu +0x98 — *odvozeno* |
-| 0x53 | define_region(i,l,t,r,b,v) | registruje obdélníkový region (jen pod síťovou autoritou) — *odvozeno* |
-| 0x55 | try_move(obj,x,y,f)→ok | přesun objektu na (x,y), vrací úspěch — *odvozeno* |
-| 0x63 | region_obstacle(obj,flag) | kolize se zvláštním příznakem — *odvozeno* |
+| 0x2d | create_animation(x,y,flags,res[]) | animated object; flags bit 0 plays, bit 1 loops (0x4391e0) |
+| 0x2e | create_bitmap(x,y,res) | static bitmap at (x,y) |
+| 0x2f | create_obstacle(l,t,r,b) | collision rectangle (half-open) |
+| 0x30 | set_object_rect(obj,l,t,r,b) | sets an object's local rectangle |
+| 0x33 | insert_scene(obj) | inserts an object into the scene |
+| 0x34 | select_layer(n) | selects the active scene layer (0 floor, 1 middle, 2 top/collision) |
+| 0x35 | set_background(res) | window fill background (not the map base) |
+| 0x36 | set_audio(res,res) | level music/ambient |
+| 0x38 | associate_callback(obj,id) | binds a script callback to an object |
+| 0x3a | place(obj,x,y) | places an object at base (x,y); local rectangles move along |
+| 0x31 | set_zorder(obj,n) | drawing order (negative = earlier/behind) — *inferred from use* |
+| 0x3e | get_object(id) | object by id |
+| 0x41 | object_event(a,id) | sends an object event |
+| 0x43 | spawn_shot(x,y,dir,owner,flags) | creates a projectile (see pipes-re.md) |
+| 0x44/0x45 | timer_create(id,ms,flags)/timer_cancel | flags 1 paused, 2 start now, 4 repeat; the callback is always entry 6 with id in arg0 |
+| 0x50 | play(obj,loop) | plays an animation (0x4390d0); loop=0 once, stops on the last frame |
+| 0x3b/0x3c | hide/show(obj) | hides/shows an object — *pair, inferred* |
+| 0x40 | trigger(obj) | runs a method of sub-object +0x98 — *inferred* |
+| 0x53 | define_region(i,l,t,r,b,v) | registers a rectangular region (under network authority only) — *inferred* |
+| 0x55 | try_move(obj,x,y,f)→ok | moves an object to (x,y), returns success — *inferred* |
+| 0x63 | region_obstacle(obj,flag) | collision with a special flag — *inferred* |
 
-Jména označená *odvozeno* vycházejí z použití a krátké disassembly handleru, ne z
-nalezených symbolů. `0x4384c0` je společný „vyhodnoť další výraz"; podle počtu jeho
-volání v handleru se ověřila arita.
+Names marked *inferred* come from use and a short disassembly of the handler, not from recovered symbols.
+`0x4384c0` is the shared "evaluate next expression"; arity was checked by the number of its calls in a handler.
 
-## Co nese každý level (extrahováno)
+## What each level carries
 
-`analysis/level-facts.json` obsahuje pro všech šest map: názvy (EN/CZ), GUID, typové
-id, pozadí/zvuk, scénu po vrstvách, kolizní obdélníky v absolutních souřadnicích,
-časovače a region/net tabulky. Mapování resource → vyexportovaný PNG je `N = res − 65536`.
-Herní základ mapy je **první `create_bitmap(0,0)`**, nikoli `set_background`.
+For all six maps the extraction covers names (EN/CZ), GUID, type id, background and sound, scene by layer,
+collision rectangles in absolute coordinates, timers and region/net tables. The resource → exported PNG
+mapping is `N = res − 65536`. The map base is the **first `create_bitmap(0,0)`**, not `set_background`.
 
-| res | EN / CZ | typ | základ PNG | překážky | pozn. |
+| res | EN / CZ | type | base PNG | obstacles | note |
 |---|---|---|---|---|---|
-| 319 | Dj Slaughter / Vybíjená | 2 | 310 | 6 | 2 dekor. animace |
-| 320 | Bedtime story / Na dobrou noc | 1 | 83 | 13 | náhodné rozmístění A/B, skriptovaní tvorové |
-| 321 | Steel works / Noční směna | 3 | 87 | 23 | roury (viz pipes-re.md) |
-| 322 | Malaria / Malárie | 4 | 103 | 7 | vítr: časovač 5–15 s přehraje 8 animací (viz reconstruction.md) |
-| 323 | 8-bit / V zajetí 8-bitu | 5 | 100 | 10 | 7 regionů, skriptovaný „boss" (objekt 9) |
-| 324 | Exitus | 6 | 102 | 18 | plně statická, dekorace s kolizí |
+| 319 | Dj Slaughter / Vybíjená | 2 | 310 | 6 | 2 decorative animations |
+| 320 | Bedtime story / Na dobrou noc | 1 | 83 | 13 | random A/B layout, scripted creatures |
+| 321 | Steel works / Noční směna | 3 | 87 | 23 | pipes (see pipes-re.md) |
+| 322 | Malaria / Malárie | 4 | 103 | 7 | wind: a 5–15 s timer plays 8 animations (see reconstruction.md) |
+| 323 | 8-bit / V zajetí 8-bitu | 5 | 100 | 10 | 7 regions, scripted "boss" (object 9) |
+| 324 | Exitus | 6 | 102 | 18 | fully static, decorations with collision |
 
-### Na dobrou noc (320): náhodné rozmístění
+### Na dobrou noc (320): random layout
 
-Blok 0xab volí `global3 = random(0,1)`; podle výsledku se pět objektů (stromy/keře/
-muchomůrka/kláda a jejich tvorové) umístí do jedné ze dvou sad souřadnic. Každá
-umisťovací subrutina má navíc vlastní pravděpodobnostní bránu `if random(0,k)==0 return`,
-takže ne každý objekt se objeví vždy. To je skutečná původní mechanika, ne odhad.
+Block 0xab picks `global3 = random(0,1)`; by the result five objects (trees/bushes/mushroom/log and their
+creatures) go to one of two coordinate sets. Each placing subroutine also has its own probability gate
+`if random(0,k)==0 return`, so not every object always appears. This is the real original mechanism.
 
-### Exitus (324): „náhoda" která je vždy pravdivá
+### Exitus (324): "chance" that is always true
 
-Subrutina 0x296 testuje `if random(0,5)==6` před pěti dekoracemi s kolizí. Hodnota 6
-je mimo rozsah RNG 0..5, takže se větev nikdy neskočí a těchto pět útvarů se umístí
-**vždy**. Jediná skutečně náhodná jsou dvě čistě vizuální dekorace v 0x239
-(`random(0,5)==0`, tj. 1/6 šance na vynechání). Jde o pozorování přímo z bytecode.
+Subroutine 0x296 tests `if random(0,5)==6` before five decorations with collision. The value 6 is outside the
+RNG range 0..5, so the branch is never taken and these five shapes are **always** placed. The only truly
+random ones are two purely visual decorations in 0x239 (`random(0,5)==0`, i.e. a 1/6 chance of being skipped).
+This is observed directly from the bytecode.
 
-### 8-bit (323): skriptovaný boss
+### 8-bit (323): scripted boss
 
-Objekt 9 je skriptovaný tvor s vlastní animační sadou (res 65790–65800). Čítač
-`global13` počítá zásahy; při >7 tvor „umírá" (blok 0x8a0). Přesouvá se mezi třemi
-pozicemi přes `try_move` na (704,387)/(452,77)/(40,195), střílí přes `spawn_shot`/
-nativ 0x62 a interaguje s rozbitnými bloky (objekty 18/19/20). Plná AI zatím není
-přenesená.
+Object 9 is a scripted creature with its own animation set (res 65790–65800). Counter `global13` counts hits;
+above 7 the creature "dies" (block 0x8a0). The full behaviour is described in `reconstruction.md`.
 
-## Přeneseno do webu
+## What remains
 
-- **Exitus** a **Na dobrou noc** přidány jako hratelné mapy: původní základ, statická
-  kulisa ve správných vrstvách (pozadí vs. popředí) a kompletní kolizní obdélníky
-  z extrakce. Renderer `web/dist/app.js` nově podporuje více vrstev pozadí/popředí
-  (`fg` příznak, zpětně kompatibilní). Ověřeno `verify-browser.mjs` (bez chyb a bez
-  chybějících assetů) přes všech pět map.
+- The exact meaning of natives 0x53/0x55/0x62/0x40 and network synchronisation of regions.
 
-## Co zbývá
-
-- **8-bit (323)**: hotovo – bitmapy v režimech 1/2 vyexportované (`export_8bit_assets.py`), skript přenesený do `web/dist/eightbit.js`, viz `reconstruction.md`.
-- **Skriptovaní tvorové** (Na dobrou noc, 8-bit): animace s více snímky a AI callbacky
-  (pohyb, střelba, teleport-boss) nejsou simulované; jejich kolizní tělesa ale ve webu
-  jako překážky jsou.
-- **Náhodné A/B rozmístění** Na dobrou noc je ve webu zatím pevné (jedna sada);
-  data pro obě sady i pravděpodobnostní brány jsou v `level-facts.json`.
-- Přesný význam nativů 0x53/0x55/0x62/0x40 a síťová synchronizace regionů.
+Status of individual maps is in `dist/reconstruction.md`.

@@ -1,52 +1,48 @@
-# Audit kolizí ve webu (debug overlay)
+# Collision audit in the web (debug overlay)
 
-Nástroj: `http://127.0.0.1:4173/?debug` kreslí červené obdélníky překážek z `maps.json`,
-azurový hitbox hráče a žlutý bod jeho logické pozice. Zapnuto přes URL parametr `?debug`
-(bez něj se nekreslí nic).
+Tool: `?debug` in the URL draws red obstacle rectangles from `maps.json`, the player's cyan hitbox and a yellow
+point at their logical position. Without the parameter nothing is drawn.
 
-## Hitbox hráče — opraveno
+## Player hitbox: fixed
 
-Dřívější kolečko `r=9` (průměr 18 px) bylo ~třetina viditelného bulánka → střely „šly
-kolem" a hráči se neseknuli. Nově obdélník z `CBulanek` ctoru `0x41e963`:
-`[2,25,BODY_W-2,BODY_H]` = pro 55×62 `[2,25,53,62]`. Ve světě kolem logické `(x,y)`:
-`{x:x-25.5, y:y-25, w:51, h:37}` (tělo drženo na `(x-27.5, y-50)`). Overlay potvrzuje,
-že obdélník přesně kopíruje postavu. Použit pro zdi, kolizi hráč-hráč i zásahy.
+The earlier circle `r=9` (18 px across) was about a third of the visible bulánek, so shots "went past" and
+players did not collide. It is now the rectangle from `CBulanek` ctor `0x41e963`: `[2,25,BODY_W-2,BODY_H]`, for
+55×62 `[2,25,53,62]`. In the world around logical `(x,y)`: `{x:x-25.5, y:y-25, w:51, h:37}` (body held at
+`(x-27.5, y-50)`). The overlay confirms that the rectangle follows the character exactly. It is used for walls,
+player-to-player collision and hits.
 
-## Překážky per mapa — věrné skriptu
+## Obstacles per map, faithful to the script
 
-| Mapa | Boxy | Sedí na scenérii | Poznámka |
+| Map | Boxes | Fits the scenery | Note |
 |---|---|---|---|
-| Vybíjená | 6 | ano | horní „stěna" reproduktorů, levý/pravý okraj |
-| Noční směna | 23 | ano | stroje, jámy, hrnec; diagonální jeřáb je nadhled bez kolize |
-| Malárie | 7 | ano | větev + kameny; **kmeny stromů jsou namalované v pozadí, bez kolize i v originále** |
-| Na dobrou noc | 14 | ano | keře, kameny, kláda, noha muchomůrky (za kloboukem se projde) |
-| Exitus | 18 | ano | ruiny, skály; **kříže jsou v pozadí `102.png`, bez kolize** |
+| Vybíjená | 6 | yes | top "wall" of speakers, left/right edge |
+| Noční směna | 23 | yes | machines, pits, pot; the diagonal crane is overhead with no collision |
+| Malárie | 7 | yes | branch and stones; **tree trunks are painted in the background, with no collision in the original too** |
+| Na dobrou noc | 14 | yes | bushes, stones, log, mushroom stem (you can walk behind the cap) |
+| Exitus | 18 | yes | ruins, rocks; **the crosses are in background `102.png`, with no collision** |
 
-Boxy jsou extrahované přímo z bytecode skriptů (`extract_level_facts.py`), ne odhadem.
-U Malárie se extrakce shoduje s původní (codexovou) sadou 7 obdélníků. „Chybějící" kolize
-velkých namalovaných objektů (kříže, kmeny) odpovídá originálu — skript jim `create_obstacle`
-nedává, jsou součástí pozadí.
+Boxes are extracted directly from script bytecode, not estimated. The "missing" collision of large painted objects
+(crosses, trunks) matches the original: the script gives them no `create_obstacle`, they are part of the background.
 
-## Doplněno po hře (object_rect = footprint objektu)
+## Added after playing (object_rect = object footprint)
 
-Objekty s `set_object_rect` (native 0x30) mají vlastní pevný footprint, který se teď
-přidává jako kolizní box navíc ke `create_obstacle`:
+Objects with `set_object_rect` (native 0x30) have their own fixed footprint, now added as a collision box next to
+`create_obstacle`:
 
-- **Keř** v Na dobrou noc (res 72, objekt `0x5c9`) měl jen `object_rect` a žádný
-  `create_obstacle` → dřív se jím dalo projít. Nově kolize `[70,150,151,187]`.
-- **Muchomůrka-domeček** (res 106, objekt `0x1e7`) má `create_obstacle` na spodku klobouku
-  a `object_rect` na **stonku** `[444,293,597,329]` → nově pevný základ domečku.
+- The **bush** in Na dobrou noc (res 72, object `0x5c9`) had only `object_rect` and no `create_obstacle`, so one could
+  walk through it. New collision `[70,150,151,187]`.
+- The **mushroom house** (res 106, object `0x1e7`) has `create_obstacle` on the underside of the cap and `object_rect`
+  on the **stem** `[444,293,597,329]`, now a solid base of the house.
 
-Bedtime tím má 16 překážek (bylo 14). Mapy bez `set_object_rect` (Exitus ad.) beze změny.
+Na dobrou noc thereby has 16 obstacles (was 14). Maps without `set_object_rect` (Exitus and others) are unchanged.
 
-## Vybíjená: DJ bulánek doplněn
+## Vybíjená: DJ bulánek added
 
-Skript 319 vkládá dvě animace, které původní export vynechal: res 216 `(448,81)` gramofony
-a res 217 `(463,63)` animovaný **DJ bulánek** (54 snímků). Přidány do `disco.animations`.
+Script 319 inserts two animations the original export missed: res 216 `(448,81)` turntables and res 217 `(463,63)`
+the animated **DJ bulánek** (54 frames). They were added to `disco.animations`.
 
-## Co z toho plyne
+## Conclusion
 
-Kolizní data jsou 1:1 se skriptem a hitbox je nově správný tvar. Pokud konkrétní objekt
-působí „neprůchodně/průchodně" špatně, je to buď (a) vlastnost originálu (pozadí bez kolize),
-nebo (b) kandidát na kontrolu konkrétního záznamu v `level-facts.json` — overlay `?debug`
-ukáže který box.
+Collision data is 1:1 with the script and the hitbox now has the right shape. If a specific object seems wrongly
+passable or impassable, it is either (a) a property of the original (background with no collision), or (b) a candidate
+for checking its specific record; the `?debug` overlay shows which box.
