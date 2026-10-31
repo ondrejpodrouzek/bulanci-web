@@ -9,7 +9,12 @@ metadata (rozložení map, parametry zbraní, popis animací) a dokumentace.
 
 Autorská práva k původní hře patří SleepTeam Labs. Projekt s nimi není nijak spojený.
 
-## Spuštění
+**[Hrát na webu](https://ondrejpodrouzek.github.io/bulanci-web/)** · potřebujete vlastní `bulanci.exe` verze 1.80 · [jak hra vznikla](docs/jak-hra-vznikla.md)
+
+Web na GitHub Pages je pro hru na jednom počítači. Hra po síti potřebuje běžící server, takže na
+něm nejde; spusťte si ji u sebe nebo na vlastním VPS.
+
+## Spuštění u sebe
 
 Potřebujete Node.js 20+ a aktuální prohlížeč. Závislosti se neinstalují.
 
@@ -61,6 +66,7 @@ Tenhle adresář je v `.gitignore`; nepublikujte ho.
 
 ## Dokumentace
 
+- `docs/jak-hra-vznikla.md`: jak hra vznikla, co potřebuje a jak ji spustit,
 - `docs/reverse-engineering.md`: jak se z EXE dostávají data a jak číst poznámky,
 - `dist/reconstruction.md`: hlavní deník rekonstrukce, včetně otevřených rozdílů proti originálu,
 - `docs/analysis/`: podrobné rozbory jednotlivých částí.
