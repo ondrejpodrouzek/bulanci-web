@@ -1,0 +1,32 @@
+.touch-controls[hidden]{display:none!important}
+/* Overlay covering the whole game screen; only the zones and buttons take touches. */
+.touch-controls{position:absolute;inset:0;z-index:40;pointer-events:none;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;--stick:clamp(104px,30vmin,150px);--edge-x:max(18px,env(safe-area-inset-left));--edge-r:max(18px,env(safe-area-inset-right));--edge-b:max(16px,env(safe-area-inset-bottom));--edge-t:max(12px,env(safe-area-inset-top))}
+.touch-stick-zone,.touch-fire-zone{position:absolute;top:0;bottom:0;pointer-events:auto;touch-action:none}
+.touch-stick-zone{left:0;width:50%}
+.touch-fire-zone{right:0;width:50%}
+.touch-stick{position:absolute;left:calc(var(--edge-x) + var(--stick)/2 + 6px);top:calc(100% - var(--edge-b) - var(--stick)/2 - 6px);width:var(--stick);height:var(--stick);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,#ffffff14 0 45%,#ffffff22 46% 100%);border:2px solid #ffffff55;box-shadow:0 0 0 1px #0006,inset 0 0 18px #0005;opacity:.55;transition:opacity .15s;pointer-events:none}
+.touch-stick.engaged{opacity:.9;transition:none}
+.touch-stick-knob{position:absolute;left:50%;top:50%;width:44%;height:44%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle at 38% 32%,#fff9,#c9c2a0bb 55%,#6d684fbb);border:2px solid #fff8;box-shadow:0 3px 10px #0008}
+.touch-stick-arrow{position:absolute;width:0;height:0;border:7px solid transparent;opacity:.6}
+.touch-stick-arrow.lit{opacity:1;filter:drop-shadow(0 0 4px #fff4cc)}
+.touch-stick-arrow[data-arrow="2"]{left:50%;top:6px;transform:translateX(-50%);border-bottom-color:#fff;border-top:0}
+.touch-stick-arrow[data-arrow="3"]{left:50%;bottom:6px;transform:translateX(-50%);border-top-color:#fff;border-bottom:0}
+.touch-stick-arrow[data-arrow="0"]{top:50%;left:6px;transform:translateY(-50%);border-right-color:#fff;border-left:0}
+.touch-stick-arrow[data-arrow="1"]{top:50%;right:6px;transform:translateY(-50%);border-left-color:#fff;border-right:0}
+.touch-fire{position:absolute;right:calc(var(--edge-r) + 4px);bottom:calc(var(--edge-b) + 4px);width:calc(var(--stick)*.72);height:calc(var(--stick)*.72);border-radius:50%;display:grid;place-items:center;color:#fff;background:radial-gradient(circle at 40% 35%,#e0806ccc,#8b3a2ccc 70%);border:2px solid #ffd2c288;box-shadow:0 4px 0 #0007,0 0 0 1px #0006;opacity:.6;pointer-events:none}
+.touch-fire.pressed{opacity:.95;transform:translateY(2px) scale(.96);box-shadow:0 2px 0 #0007,0 0 18px #ff9d7a88}
+.touch-controls svg{width:44%;height:44%;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.touch-controls button{position:absolute;z-index:2;pointer-events:auto;touch-action:none;display:grid;place-items:center;padding:0;width:52px;height:52px;border-radius:50%;color:#fff;background:#202428a6;border:2px solid #ffffff55;box-shadow:0 3px 0 #0007;opacity:.7;-webkit-tap-highlight-color:transparent}
+.touch-controls button.pressed{opacity:1;background:#a9a17ecc;color:#101214}
+.touch-weapon{right:calc(var(--edge-r) + var(--stick)*.72 + 18px);bottom:calc(var(--edge-b) + var(--stick)*.36 - 8px)}
+.touch-pause{left:var(--edge-x);top:var(--edge-t);width:44px!important;height:44px!important}
+.touch-pause svg{width:50%;height:50%}
+html.touch-device .game-screen-shell:has(.touch-controls:not([hidden])){-webkit-user-select:none;user-select:none;overscroll-behavior:none}
+html.touch-device canvas{touch-action:none}
+html.touch-device #message{font-size:11px;white-space:normal;text-align:center;max-width:85%;width:max-content}
+html.touch-device #result button{min-height:44px}
+/* The menu is the original 800x600 picture on touch devices too: it scales as a whole (original-menu.js). */
+/* In landscape the 4:3 frame fits the screen height instead of overflowing it. */
+html.touch-device .game-screen-shell:has(#menu:not([hidden])) #game-frame{width:min(100%,calc(100dvh * 4 / 3));margin-inline:auto}
+html.touch-device main:has(#menu:not([hidden])){padding-block:0}
+html.touch-device #game-frame.screen-open #menu .original-menu-stage,#game-frame.screen-open #menu .original-menu-stage{touch-action:none}

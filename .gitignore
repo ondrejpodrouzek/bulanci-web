@@ -1,0 +1,19 @@
+node_modules/
+*.log
+__pycache__/
+*.exe
+
+# Art, sound and texts of the original game come from your own bulanci.exe
+# (tools/import_assets.py); only numeric metadata stays in Git.
+dist/assets/**
+!dist/assets/
+!dist/assets/original/
+!dist/assets/original/maps.json
+!dist/assets/original/sprites/
+!dist/assets/original/sprites/manifest.json
+!dist/assets/original/audio/
+!dist/assets/original/audio/catalog.json
+!dist/assets/original/ui/
+!dist/assets/original/ui/index.json
+!dist/assets/original/history/
+!dist/assets/original/history/films.json

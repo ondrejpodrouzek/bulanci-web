@@ -1,0 +1,10 @@
+.game-screen-shell{position:relative;width:100%;background:#000}
+.game-screen-shell:fullscreen,.game-screen-shell:-webkit-full-screen,.game-screen-shell.game-page-fullscreen{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;background:#000!important;display:grid!important;place-items:center!important;overflow:hidden!important;z-index:2147483645}
+.game-screen-shell:fullscreen #game-frame,.game-screen-shell:-webkit-full-screen #game-frame,.game-screen-shell.game-page-fullscreen #game-frame{width:var(--fullscreen-game-width,800px)!important;height:var(--fullscreen-game-height,600px)!important;max-width:none!important;max-height:none!important;aspect-ratio:4/3!important;margin:0!important;border:0!important;box-shadow:none!important;flex:none!important}
+.game-screen-shell:fullscreen canvas,.game-screen-shell.game-page-fullscreen canvas{width:100%!important;height:100%!important;object-fit:contain}
+.game-fullscreen-tools{display:none;position:absolute;right:12px;top:12px;z-index:100;gap:6px;opacity:0;transition:opacity .2s;pointer-events:none}
+.game-screen-shell:fullscreen .game-fullscreen-tools,.game-screen-shell:-webkit-full-screen .game-fullscreen-tools,.game-screen-shell.game-page-fullscreen .game-fullscreen-tools{display:flex}
+.game-screen-shell.fullscreen-controls-visible .game-fullscreen-tools,.game-fullscreen-tools:focus-within{opacity:1;pointer-events:auto}
+.game-fullscreen-tools button{font:12px Tahoma,sans-serif;background:#151515d9;color:#ddd;border:1px solid #888;border-radius:0;padding:9px 13px;cursor:pointer;box-shadow:0 1px 10px #0008}
+.game-fullscreen-tools button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.game-fullscreen-tools{transition:none}}

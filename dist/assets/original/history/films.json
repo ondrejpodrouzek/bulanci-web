@@ -1,0 +1,34 @@
+[
+ {
+  "id": 12289,
+  "width": 166,
+  "height": 154,
+  "frames": 180,
+  "durationMs": 12012,
+  "columns": 10
+ },
+ {
+  "id": 12291,
+  "width": 166,
+  "height": 153,
+  "frames": 149,
+  "durationMs": 12416,
+  "columns": 10
+ },
+ {
+  "id": 12293,
+  "width": 166,
+  "height": 154,
+  "frames": 287,
+  "durationMs": 19152,
+  "columns": 10
+ },
+ {
+  "id": 12295,
+  "width": 166,
+  "height": 153,
+  "frames": 396,
+  "durationMs": 13200,
+  "columns": 10
+ }
+]

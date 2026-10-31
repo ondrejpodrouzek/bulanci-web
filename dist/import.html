@@ -1,0 +1,52 @@
+<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#000000"><title>Bulánci: nahrát hru</title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:16px;background:#000;color:#ddd;font:16px/1.5 Tahoma,Verdana,sans-serif}
+main{width:100%;max-width:480px}
+h1{font-size:22px;letter-spacing:.3em;text-transform:uppercase;color:#fff;margin:0 0 16px}
+p{margin:0 0 12px}
+.small{font-size:13px;color:#999}
+label{display:block;margin:20px 0 12px;padding:28px 16px;text-align:center;border:1px dashed #777;cursor:pointer}
+label:hover,label.over,label:focus-within{border-color:#fff;color:#fff}
+input{position:absolute;opacity:0;width:1px;height:1px}
+progress{width:100%;height:8px;accent-color:#ddd}
+#error{color:#ff8b83}
+[hidden]{display:none}
+</style></head><body><main>
+<h1>Bulánci</h1>
+<section id="pick">
+<p>Hra běží v prohlížeči, ale její grafika, zvuky a texty na tomhle webu nejsou. Použije se vaše kopie původní hry.</p>
+<label id="drop"><input id="file" type="file" accept=".exe,application/octet-stream,application/x-msdownload">Vyberte <b>bulanci.exe</b> nebo ho sem přetáhněte</label>
+<p class="small">Soubor zůstává ve vašem zařízení a nic se z něj neodesílá. Hra si z něj uloží data do prohlížeče, příště ho už nahrávat nemusíte.</p>
+</section>
+<section id="busy" hidden><p>Připravuji hru, chvíli to potrvá…</p><progress id="bar" max="1" value="0"></progress></section>
+<p id="error" role="alert" hidden></p>
+</main><script type="module">
+import {CACHE,DONE_MARK} from './import/store.js';
+const $=id=>document.getElementById(id),target='./'+location.search;
+function fail(text){$('error').textContent=text;$('error').hidden=false;$('busy').hidden=true;$('pick').hidden=false;}
+// An active worker takes over the next page load, this page may stay uncontrolled.
+async function play(){await navigator.serviceWorker.ready;location.replace(target);}
+function run(file){
+  $('error').hidden=true;$('pick').hidden=true;$('busy').hidden=false;
+  const worker=new Worker('import/worker.js',{type:'module'});
+  worker.onmessage=async({data})=>{
+    if(data.progress!=null)$('bar').value=data.progress;
+    if(data.error){console.error(data.detail);worker.terminate();fail(data.error);}
+    if(data.done){worker.terminate();play();}
+  };
+  worker.onerror=e=>{console.error(e.message);fail('Tenhle prohlížeč import nezvládl. Zkuste aktuální verzi.');};
+  worker.postMessage(file);
+}
+if(!('serviceWorker'in navigator)||!('CompressionStream'in window)||!('OffscreenCanvas'in window)){fail('Hra potřebuje aktuální prohlížeč a stránku otevřenou přes HTTPS.');$('pick').hidden=true;}
+else{
+  $('file').onchange=e=>{if(e.target.files[0])run(e.target.files[0]);};
+  const drop=$('drop');
+  addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over');});
+  addEventListener('dragleave',()=>drop.classList.remove('over'));
+  addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');if(e.dataTransfer.files[0])run(e.dataTransfer.files[0]);});
+  navigator.serviceWorker.register('sw.js');
+  if(await (await caches.open(CACHE)).match(new URL('assets/'+DONE_MARK,location.href)))play();
+}
+</script></body></html>

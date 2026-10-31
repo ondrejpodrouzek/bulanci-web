@@ -1,0 +1,5 @@
+# HTTPS, certificate and WebSockets for /net are handled by Caddy.
+hra.example.cz {
+	encode gzip
+	reverse_proxy 127.0.0.1:4173
+}

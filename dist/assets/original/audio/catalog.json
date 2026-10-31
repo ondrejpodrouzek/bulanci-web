@@ -1,0 +1,724 @@
+{
+  "version": 1,
+  "defaultBank": 4,
+  "music": {
+    "325": {
+      "resource": 325,
+      "url": "assets/original/music/325.mp3",
+      "channels": 2,
+      "sampleRate": 44100,
+      "bits": 16,
+      "decodedBytes": 3875328,
+      "duration": 21.968979591836735,
+      "sha256": "6b281cf9cf4270152e34b3269860a112776b2dfd066d20611e495dc0ae90cadf"
+    },
+    "326": {
+      "resource": 326,
+      "url": "assets/original/music/326.mp3",
+      "channels": 2,
+      "sampleRate": 44100,
+      "bits": 16,
+      "decodedBytes": 2423808,
+      "duration": 13.740408163265306,
+      "sha256": "a7448f2d5777a452980405dea2603b8006fa991a282d38a8517eb4305250263f"
+    },
+    "327": {
+      "resource": 327,
+      "url": "assets/original/music/327.mp3",
+      "channels": 2,
+      "sampleRate": 44100,
+      "bits": 16,
+      "decodedBytes": 5124096,
+      "duration": 29.048163265306123,
+      "sha256": "6d76bb0de80b91f715ec68e44fbdb1b0073f11b6d56a71e71cf1b5df7d5e4aa5"
+    },
+    "328": {
+      "resource": 328,
+      "url": "assets/original/music/328.mp3",
+      "channels": 2,
+      "sampleRate": 44100,
+      "bits": 16,
+      "decodedBytes": 2815488,
+      "duration": 15.960816326530612,
+      "sha256": "0e3cf805435232606d23627b46f387b499a57d2a58267b5a9aabdd97f7778801"
+    },
+    "329": {
+      "resource": 329,
+      "url": "assets/original/music/329.mp3",
+      "channels": 2,
+      "sampleRate": 44100,
+      "bits": 16,
+      "decodedBytes": 884736,
+      "duration": 5.015510204081632,
+      "sha256": "462346fa0178ce6393e2340277f3c5f80ac4f5bf803b3e3c630998b9bca8a8ca"
+    },
+    "330": {
+      "resource": 330,
+      "url": "assets/original/music/330.mp3",
+      "channels": 2,
+      "sampleRate": 44100,
+      "bits": 16,
+      "decodedBytes": 695808,
+      "duration": 3.944489795918367,
+      "sha256": "ab1e03b251b428ce4c4a934d0cffecf5dbe2aaf6bb514aa96a0fdebfba6210e1"
+    },
+    "331": {
+      "resource": 331,
+      "url": "assets/original/music/331.mp3",
+      "channels": 2,
+      "sampleRate": 44100,
+      "bits": 16,
+      "decodedBytes": 1769472,
+      "duration": 10.031020408163265,
+      "sha256": "1372a9a18fd1ef2abedac3d75ac83ce0e4d5492d456df5cd841ad79965ea78e9"
+    },
+    "332": {
+      "resource": 332,
+      "url": "assets/original/music/332.mp3",
+      "channels": 2,
+      "sampleRate": 44100,
+      "bits": 16,
+      "decodedBytes": 1912320,
+      "duration": 10.840816326530613,
+      "sha256": "c4f06b10f2b3391419d64d65378a729a7746c4627e36e3055299e420def9919b"
+    },
+    "333": {
+      "resource": 333,
+      "url": "assets/original/music/333.mp3",
+      "channels": 2,
+      "sampleRate": 44100,
+      "bits": 16,
+      "decodedBytes": 3714048,
+      "duration": 21.05469387755102,
+      "sha256": "fea162458eb69f538f4ea44e514a90858484070d4660e0a7341bb9bb7e33660f"
+    }
+  },
+  "levels": {
+    "319": {
+      "music": 325,
+      "ambientBank": null,
+      "evidence": "level319 set_audio at decoded AST"
+    },
+    "320": {
+      "music": 332,
+      "ambientBank": 1,
+      "evidence": "level320 set_audio at decoded AST"
+    },
+    "321": {
+      "music": 327,
+      "ambientBank": 2,
+      "evidence": "level321 set_audio at decoded AST"
+    },
+    "322": {
+      "music": 333,
+      "ambientBank": null,
+      "evidence": "level322 set_audio at decoded AST"
+    },
+    "323": {
+      "music": 328,
+      "ambientBank": 0,
+      "evidence": "level323 set_audio at decoded AST"
+    },
+    "324": {
+      "music": 326,
+      "ambientBank": null,
+      "evidence": "level324 set_audio at decoded AST"
+    }
+  },
+  "scenes": {
+    "menuDay": 329,
+    "menuNight": 330,
+    "pause": 331
+  },
+  "effects": {
+    "pistol": {
+      "bank": 4,
+      "sample": 21
+    },
+    "shotgun": {
+      "bank": 4,
+      "sample": 13
+    },
+    "smg": {
+      "bank": 3,
+      "sample": 3
+    },
+    "reload": {
+      "bank": 4,
+      "sample": 16
+    },
+    "roundEnd": {
+      "bank": 4,
+      "sample": 17
+    },
+    "pickup": {
+      "bank": 4,
+      "sample": 18
+    },
+    "death": {
+      "bank": 4,
+      "sample": 23
+    },
+    "rocketDeath": {
+      "bank": 4,
+      "sample": 22
+    },
+    "teleport": {
+      "bank": 4,
+      "sample": 36
+    },
+    "uiClick": {
+      "bank": 4,
+      "sample": 0
+    },
+    "explosion": {
+      "bank": 3,
+      "sample": 1
+    },
+    "smgLast": {
+      "bank": 3,
+      "sample": 4
+    },
+    "rocket": {
+      "bank": 3,
+      "sample": 7
+    }
+  },
+  "voices": {
+    "spawn": [
+      1,
+      4,
+      7,
+      10
+    ],
+    "afterDeath": [
+      3,
+      6,
+      9,
+      12
+    ],
+    "taunt": [
+      2,
+      5,
+      8,
+      11
+    ]
+  },
+  "samples": {
+    "0-0.wav": {
+      "bank": 0,
+      "source": 334,
+      "sample": 0,
+      "byte_offset": 0,
+      "bytes": 12570,
+      "seconds": 0.28503401360544217
+    },
+    "0-1.wav": {
+      "bank": 0,
+      "source": 334,
+      "sample": 1,
+      "byte_offset": 12570,
+      "bytes": 6864,
+      "seconds": 0.15564625850340136
+    },
+    "0-2.wav": {
+      "bank": 0,
+      "source": 334,
+      "sample": 2,
+      "byte_offset": 19434,
+      "bytes": 18462,
+      "seconds": 0.41863945578231293
+    },
+    "0-3.wav": {
+      "bank": 0,
+      "source": 334,
+      "sample": 3,
+      "byte_offset": 37896,
+      "bytes": 10752,
+      "seconds": 0.2438095238095238
+    },
+    "0-4.wav": {
+      "bank": 0,
+      "source": 334,
+      "sample": 4,
+      "byte_offset": 48648,
+      "bytes": 29374,
+      "seconds": 0.6660770975056689
+    },
+    "1-0.wav": {
+      "bank": 1,
+      "source": 335,
+      "sample": 0,
+      "byte_offset": 0,
+      "bytes": 22656,
+      "seconds": 0.5137414965986394
+    },
+    "1-1.wav": {
+      "bank": 1,
+      "source": 335,
+      "sample": 1,
+      "byte_offset": 22656,
+      "bytes": 14648,
+      "seconds": 0.33215419501133786
+    },
+    "1-2.wav": {
+      "bank": 1,
+      "source": 335,
+      "sample": 2,
+      "byte_offset": 37304,
+      "bytes": 8928,
+      "seconds": 0.20244897959183675
+    },
+    "1-3.wav": {
+      "bank": 1,
+      "source": 335,
+      "sample": 3,
+      "byte_offset": 46232,
+      "bytes": 10356,
+      "seconds": 0.23482993197278912
+    },
+    "1-4.wav": {
+      "bank": 1,
+      "source": 335,
+      "sample": 4,
+      "byte_offset": 56588,
+      "bytes": 20544,
+      "seconds": 0.4658503401360544
+    },
+    "2-0.wav": {
+      "bank": 2,
+      "source": 336,
+      "sample": 0,
+      "byte_offset": 0,
+      "bytes": 180370,
+      "seconds": 4.090022675736962
+    },
+    "2-1.wav": {
+      "bank": 2,
+      "source": 336,
+      "sample": 1,
+      "byte_offset": 180370,
+      "bytes": 18912,
+      "seconds": 0.428843537414966
+    },
+    "2-2.wav": {
+      "bank": 2,
+      "source": 336,
+      "sample": 2,
+      "byte_offset": 199282,
+      "bytes": 16736,
+      "seconds": 0.3795011337868481
+    },
+    "3-0.wav": {
+      "bank": 3,
+      "source": 337,
+      "sample": 0,
+      "byte_offset": 0,
+      "bytes": 8720,
+      "seconds": 0.19773242630385487
+    },
+    "3-1.wav": {
+      "bank": 3,
+      "source": 337,
+      "sample": 1,
+      "byte_offset": 8720,
+      "bytes": 47746,
+      "seconds": 1.0826757369614513
+    },
+    "3-2.wav": {
+      "bank": 3,
+      "source": 337,
+      "sample": 2,
+      "byte_offset": 56466,
+      "bytes": 20624,
+      "seconds": 0.46766439909297053
+    },
+    "3-3.wav": {
+      "bank": 3,
+      "source": 337,
+      "sample": 3,
+      "byte_offset": 77090,
+      "bytes": 4456,
+      "seconds": 0.10104308390022676
+    },
+    "3-4.wav": {
+      "bank": 3,
+      "source": 337,
+      "sample": 4,
+      "byte_offset": 81546,
+      "bytes": 15368,
+      "seconds": 0.3484807256235828
+    },
+    "3-5.wav": {
+      "bank": 3,
+      "source": 337,
+      "sample": 5,
+      "byte_offset": 96914,
+      "bytes": 10176,
+      "seconds": 0.2307482993197279
+    },
+    "3-6.wav": {
+      "bank": 3,
+      "source": 337,
+      "sample": 6,
+      "byte_offset": 107090,
+      "bytes": 16836,
+      "seconds": 0.3817687074829932
+    },
+    "3-7.wav": {
+      "bank": 3,
+      "source": 337,
+      "sample": 7,
+      "byte_offset": 123926,
+      "bytes": 62838,
+      "seconds": 1.4248979591836735
+    },
+    "4-0.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 0,
+      "byte_offset": 0,
+      "bytes": 15904,
+      "seconds": 0.36063492063492064
+    },
+    "4-1.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 1,
+      "byte_offset": 15904,
+      "bytes": 13408,
+      "seconds": 0.30403628117913833
+    },
+    "4-2.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 2,
+      "byte_offset": 29312,
+      "bytes": 29376,
+      "seconds": 0.6661224489795918
+    },
+    "4-3.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 3,
+      "byte_offset": 58688,
+      "bytes": 46464,
+      "seconds": 1.0536054421768708
+    },
+    "4-4.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 4,
+      "byte_offset": 105152,
+      "bytes": 17388,
+      "seconds": 0.3942857142857143
+    },
+    "4-5.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 5,
+      "byte_offset": 122540,
+      "bytes": 44520,
+      "seconds": 1.0095238095238095
+    },
+    "4-6.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 6,
+      "byte_offset": 167060,
+      "bytes": 21248,
+      "seconds": 0.4818140589569161
+    },
+    "4-7.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 7,
+      "byte_offset": 188308,
+      "bytes": 21272,
+      "seconds": 0.48235827664399095
+    },
+    "4-8.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 8,
+      "byte_offset": 209580,
+      "bytes": 22270,
+      "seconds": 0.5049886621315193
+    },
+    "4-9.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 9,
+      "byte_offset": 231850,
+      "bytes": 19712,
+      "seconds": 0.446984126984127
+    },
+    "4-10.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 10,
+      "byte_offset": 251562,
+      "bytes": 35598,
+      "seconds": 0.8072108843537414
+    },
+    "4-11.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 11,
+      "byte_offset": 287160,
+      "bytes": 13584,
+      "seconds": 0.30802721088435375
+    },
+    "4-12.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 12,
+      "byte_offset": 300744,
+      "bytes": 17272,
+      "seconds": 0.39165532879818593
+    },
+    "4-13.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 13,
+      "byte_offset": 318016,
+      "bytes": 39104,
+      "seconds": 0.8867120181405895
+    },
+    "4-14.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 14,
+      "byte_offset": 357120,
+      "bytes": 9204,
+      "seconds": 0.20870748299319727
+    },
+    "4-15.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 15,
+      "byte_offset": 366324,
+      "bytes": 25136,
+      "seconds": 0.5699773242630386
+    },
+    "4-16.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 16,
+      "byte_offset": 391460,
+      "bytes": 25704,
+      "seconds": 0.5828571428571429
+    },
+    "4-17.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 17,
+      "byte_offset": 417164,
+      "bytes": 31814,
+      "seconds": 0.72140589569161
+    },
+    "4-18.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 18,
+      "byte_offset": 448978,
+      "bytes": 12182,
+      "seconds": 0.2762358276643991
+    },
+    "4-19.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 19,
+      "byte_offset": 461160,
+      "bytes": 3584,
+      "seconds": 0.08126984126984127
+    },
+    "4-20.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 20,
+      "byte_offset": 464744,
+      "bytes": 15550,
+      "seconds": 0.3526077097505669
+    },
+    "4-21.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 21,
+      "byte_offset": 480294,
+      "bytes": 8812,
+      "seconds": 0.19981859410430838
+    },
+    "4-22.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 22,
+      "byte_offset": 489106,
+      "bytes": 7006,
+      "seconds": 0.15886621315192745
+    },
+    "4-23.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 23,
+      "byte_offset": 496112,
+      "bytes": 8936,
+      "seconds": 0.20263038548752835
+    },
+    "4-24.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 24,
+      "byte_offset": 505048,
+      "bytes": 75586,
+      "seconds": 1.713968253968254
+    },
+    "4-25.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 25,
+      "byte_offset": 580634,
+      "bytes": 72558,
+      "seconds": 1.6453061224489796
+    },
+    "4-26.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 26,
+      "byte_offset": 653192,
+      "bytes": 91844,
+      "seconds": 2.0826303854875285
+    },
+    "4-27.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 27,
+      "byte_offset": 745036,
+      "bytes": 85752,
+      "seconds": 1.9444897959183673
+    },
+    "4-28.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 28,
+      "byte_offset": 830788,
+      "bytes": 73214,
+      "seconds": 1.6601814058956916
+    },
+    "4-29.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 29,
+      "byte_offset": 904002,
+      "bytes": 131850,
+      "seconds": 2.989795918367347
+    },
+    "4-30.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 30,
+      "byte_offset": 1035852,
+      "bytes": 64768,
+      "seconds": 1.4686621315192743
+    },
+    "4-31.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 31,
+      "byte_offset": 1100620,
+      "bytes": 44134,
+      "seconds": 1.0007709750566893
+    },
+    "4-32.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 32,
+      "byte_offset": 1144754,
+      "bytes": 19422,
+      "seconds": 0.44040816326530613
+    },
+    "4-33.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 33,
+      "byte_offset": 1164176,
+      "bytes": 45694,
+      "seconds": 1.0361451247165532
+    },
+    "4-34.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 34,
+      "byte_offset": 1209870,
+      "bytes": 34430,
+      "seconds": 0.7807256235827664
+    },
+    "4-35.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 35,
+      "byte_offset": 1244300,
+      "bytes": 41954,
+      "seconds": 0.9513378684807257
+    },
+    "4-36.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 36,
+      "byte_offset": 1286254,
+      "bytes": 3846,
+      "seconds": 0.0872108843537415
+    },
+    "4-37.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 37,
+      "byte_offset": 1290100,
+      "bytes": 79360,
+      "seconds": 1.799546485260771
+    },
+    "4-38.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 38,
+      "byte_offset": 1369460,
+      "bytes": 65916,
+      "seconds": 1.4946938775510203
+    },
+    "4-39.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 39,
+      "byte_offset": 1435376,
+      "bytes": 58622,
+      "seconds": 1.329297052154195
+    },
+    "4-40.wav": {
+      "bank": 4,
+      "source": 338,
+      "sample": 40,
+      "byte_offset": 1493998,
+      "bytes": 57086,
+      "seconds": 1.294467120181406
+    }
+  },
+  "evidence": {
+    "defaultBank": "0x402b65 -> resource0x10004; 0x422430",
+    "pistol": "0x41f2e6..0x41f303: flag0x10 -> sample0x15",
+    "shotgun": "0x41f2eb..0x41f2fc: flag0x20 -> sample0x0d",
+    "smg": "0x41f2f0..0x41f2f5: flag0x40 -> sample0x13",
+    "reload": "0x4175b8: sample0x10 when reload completes",
+    "spawn": "0x41f88c -> 0x416670 -> table0x4aef98",
+    "afterDeath": "0x420e56 -> 0x416690 -> table0x4aefa8",
+    "taunt": "0x420f0a -> 0x4166b0 -> table0x4aef88",
+    "death": "0x41f9a5..0x41fa0b: sample23 or22 for weaponType1",
+    "pan": "0x422500: clamp(xCenter,0,800)*3000/800-1500 DirectSound hundredths dB",
+    "menu": "0x425301 /0x42531a: resources330/329",
+    "pause": "0x420148: resource331"
+  },
+  "caveats": [
+    "Menu day/night threshold is a browser preference; original threshold not recovered.",
+    "Explicit scripted sounds can be emitted via {type:sound,bank,sample,x}.",
+    "The web engine currently emits fewer events than the original: omitted creature/special-level sounds require those gameplay events."
+  ]
+}

@@ -1,0 +1,35 @@
+#menu .original-menu-stage{position:absolute;left:0;top:0;width:800px;height:600px;transform-origin:0 0;background:#151515 url(assets/menu.jpg) 0 0/800px 600px no-repeat;overflow:hidden;font:12px Tahoma,Arial,sans-serif;color:#bdbdbd;isolation:isolate}
+#menu .original-menu-stage nav{left:35px;top:37px;width:195px;height:265px;display:flex;align-items:stretch;gap:19px;z-index:4}
+#menu .original-menu-stage .picture-button{position:relative;display:block;width:195px;height:65px;min-height:65px;max-width:none;padding:0;border:0;background:none;text-align:left;filter:none;transition:none}
+#menu .menu-orb{position:absolute;left:0;top:0;width:64px;height:65px;background:url(assets/original/sprites/212-sheet.png) 0 0/512px 65px no-repeat}
+#menu .original-menu-stage .picture-button .menu-word{position:absolute;left:65px;top:18px;width:130px;height:26px;max-width:none}
+#menu .menu-word-active{visibility:hidden}#menu .picture-button[aria-current="page"] .menu-word-active{visibility:visible}#menu .picture-button[aria-current="page"] .menu-word:not(.menu-word-active){visibility:hidden}
+#menu .original-menu-stage #resume{position:absolute;left:0;top:284px;width:169px;padding:7px 2px;font:11px Tahoma;color:#ddd;letter-spacing:1px;border:1px solid #777;background:#171717b0}
+#menu .original-menu-stage .menu-illustration{position:absolute;right:0;bottom:0;width:394px;height:261px;z-index:-1;pointer-events:none}
+#menu .original-menu-stage .menu-options{left:278px;top:68px;width:420px;height:445px;padding:0;overflow:auto;scrollbar-width:thin;scrollbar-color:#777 #222}
+#menu .original-menu-stage .menu-options h1{font:15px Tahoma;font-weight:400;letter-spacing:2px;text-align:left;text-shadow:none;margin:0 0 18px;color:#ddd}
+#menu .original-menu-stage .subtitle{display:none}
+#menu .original-menu-stage label{display:grid;grid-template-columns:105px 1fr;gap:10px;align-items:center;font:12px Tahoma;margin:14px 0;color:#bbb}
+#menu .original-menu-stage select{font:11px Tahoma;width:100%;min-width:0;border:1px solid #727272;border-radius:0;background:#1c1c1c;color:#ccc;padding:5px;box-shadow:inset 1px 1px #000}
+#menu .original-menu-stage .map-selection{margin:8px 0 14px 115px;position:relative;isolation:isolate}
+#menu .original-menu-stage .map-selection img{width:100%;height:94px;border:1px solid #777;object-fit:cover;filter:none}
+#menu .original-menu-stage .help{font:10px/1.5 Tahoma;margin:15px 0 0;color:#aaa}
+#menu .original-menu-stage .help p{margin:3px 0}
+#menu .original-menu-stage .work-note{display:none}
+#menu .original-menu-stage #start-text{font:12px Tahoma;letter-spacing:1px;padding:7px 16px;width:160px;margin:16px 0 0 auto;background:linear-gradient(#505050,#202020);border:1px solid #888;border-radius:0}
+#menu .original-menu-stage #start-text:hover{background:linear-gradient(#777,#333);color:#fff}
+#menu .menu-exit-panel{position:absolute;left:300px;top:150px;width:350px;text-align:center;font:13px/1.8 Tahoma}#menu .menu-exit-panel h2{font:16px Tahoma;letter-spacing:1px;margin:0 0 15px;text-transform:none}
+#menu .menu-exit-panel button{font:12px Tahoma;border:1px solid #888;background:#333;color:#ddd;padding:6px 16px;margin:10px 4px}
+#menu .original-menu-stage [hidden]{display:none!important}
+#menu .menu-audio-shortcut{position:absolute;left:270px;bottom:34px;font:10px Tahoma;color:#999;border:0;background:none;padding:4px;cursor:pointer}
+#menu .menu-fullscreen-shortcut{position:absolute;left:410px;bottom:34px;font:10px Tahoma;color:#999;border:0;background:none;padding:4px;cursor:pointer}
+#menu .menu-sound-popup{position:absolute;left:280px;top:355px;width:380px;padding:20px;z-index:15;border:1px solid #888;background:#222f;box-shadow:0 0 30px #000b;font:12px Tahoma}
+#menu .menu-sound-popup>b{display:block;font-weight:400;margin-bottom:18px;letter-spacing:1px}
+#menu .menu-sound-popup .close-menu-sound{position:absolute;right:8px;top:4px;font:22px Tahoma;background:none;border:0;color:#ccc;padding:0 5px}
+#menu .menu-sound-popup .audio-volume-panel label{grid-template-columns:52px 1fr 40px}
+@media(prefers-reduced-motion:reduce){#menu .picture-button .menu-orb{animation:none!important}}
+#menu .original-menu-stage input[type=number]{font:11px Tahoma;width:100%;min-width:0;border:1px solid #727272;border-radius:0;background:#1c1c1c;color:#ccc;padding:5px;box-shadow:inset 1px 1px #000}
+#menu .original-menu-stage .rules-row{width:100%;min-width:0}
+#game-frame.dialog-open #menu .original-menu-stage .menu-options{visibility:hidden}
+#menu .original-menu-stage .menu-night{position:absolute;left:610px;top:0;width:190px;height:166px;z-index:-3;pointer-events:none}
+#menu .original-menu-stage .menu-scene{position:absolute;left:0;top:0;width:800px;height:600px;z-index:-2;pointer-events:none}
