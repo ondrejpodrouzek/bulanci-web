@@ -1,6 +1,6 @@
 // Serves the assets a player imported from their own bulanci.exe (import.html). The game keeps
 // using its normal assets/ paths; whatever is not imported comes from the server.
-const CACHE='bulanci-exe-assets-v2';
+const CACHE='bulanci-exe-assets-v3';
 
 addEventListener('install',()=>skipWaiting());
 // A new data version asks for the EXE again: old data lacks what the new code needs.

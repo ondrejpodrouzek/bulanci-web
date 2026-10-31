@@ -130,6 +130,10 @@ function decodeBitmap(d){
   return {width:w,height:h,rgba,mode};
 }
 
+function indexed(d,palette){const v=view(d),w=v.getUint32(4,true),h=v.getUint32(8,true),stride=v.getUint32(16,true),rgba=new Uint8Array(w*h*4);
+  for(let y=0,o=0;y<h;y++)for(let x=0;x<w;x++,o+=4){const p=d[30+y*stride+x];rgba.set(palette.subarray(p*3,p*3+3),o);rgba[o+3]=255;}
+  return {width:w,height:h,rgba};}
+
 const CRC=new Int32Array(256).map((_,n)=>{for(let k=0;k<8;k++)n=n&1?0xedb88320^(n>>>1):n>>>1;return n;});
 function chunk(type,data){const out=new Uint8Array(12+data.length),v=view(out);v.setUint32(0,data.length);for(let i=0;i<4;i++)out[4+i]=type.charCodeAt(i);out.set(data,8);
   let c=-1;for(let i=4;i<8+data.length;i++)c=CRC[(c^out[i])&255]^(c>>>8);v.setUint32(8+data.length,~c>>>0);return out;}
@@ -191,6 +195,8 @@ export async function* buildAssets(exe,manifest,canvas,progress=()=>{}) {
   const bitmaps=ofKind(28),animations=ofKind(52),total=bitmaps.length+animations.length+40;let done=0;const step=()=>progress(++done/total);
 
   for(const [n,{data}] of bitmaps){const blob=await png(decodeBitmap(data));yield {path:`original/ui/${n}.png`,data:blob};if(BITMAPS.has(n))yield {path:`original/${n}.png`,data:blob};step();}
+  // Bitmap 29 has no palette of its own: CBulPicture draws it through the player's (0x40b050).
+  for(const [i,rgb] of manifest.original_player_colors.entries())yield {path:`original/ui/29-c${i}.png`,data:await png(indexed(res.get(29).data,playerPalette(base,rgb)))};
   for(const [n,name] of Object.entries(JPEGS))yield {path:name,data:new Blob([res.get(+n).data.subarray(4)],{type:'image/jpeg'})};
 
   const title=await canvas.decode(res.get(314).data.subarray(4)),side=Math.min(title.width,title.height);

@@ -72,4 +72,4 @@ That directory is in `.gitignore`; do not publish it.
 - `dist/reconstruction.md`: the main reconstruction log, including open differences from the original,
 - `docs/analysis/`: detailed studies of individual parts.
 
-The game is not a 1:1 copy. The largest known difference is the in-game HUD.
+The game is not a 1:1 copy. A function-by-function audit of the game logic is still open.

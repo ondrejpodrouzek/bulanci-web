@@ -257,8 +257,6 @@ By default the server listens only on 127.0.0.1; for LAN play start it with `BUL
 
 t52 chunks 14 and 15 (`0x432dd5`, `0x432def`) unpack, with the same routines as the image (`0x432740`, `0x432780`), an alpha plane w×h into bitmap `+0x20`. The export used to drop them, so shadows (black, index 0, alpha 95–96) and smoke with soft transitions (alpha 0–254) were opaque. Blending is per channel through table `0x4b84f8` in 565; the web uses normal canvas alpha compositing, without the 565 rounding.
 
-Open differences: the HUD is not a port of the original. Constructor `0x4280f0` creates panels only by `config+0xd8` (human players) at X from `0x4af924`; the web draws panels for opponents too, with its own texts. The portrait, counter and weapon icon are missing (bitmaps 22, 29, 128, 169, 172, fonts 174 and 175). The original writes time as seconds in the rectangle (358, 45, 444, 95), the web as m:ss. The hint text above the game is a web addition.
-
 ## Update 31 Oct 2026: how a bulánek dies
 
 The web used to play the torn-apart animations 204–210 for every death. In the EXE those are only for flag 0x80.
@@ -277,11 +275,23 @@ The original screens have their own pointer, class `CGunMouse` (ctor `0x426060`,
 
 Web: `ui/gun-mouse.js`, mouse only. Not verified: whether the pointer shows during a game; the web shows it on the menu and dialogs only.
 
+## Update 31 Oct 2026: the HUD (CPanel)
+
+`CPanel` (`0x4280f0`) builds one panel per human at X from `0x4af924`; bots have none. Positions are relative to bar 117 at y = 495.
+
+- Name: font 175, style 5, rectangle (X+4,9)–(X+92,22). Frame: bitmap 128 at (X+5,40).
+- Portrait: `CBulPicture` (`0x40b050`) at (X+6,41) draws bitmap 29, which has no palette of its own, through the player's palette.
+- Ammo: `CShotCounter` at (X+6,84) on background 166. Rounds use column 5 of table `0x482820`, spread evenly (`0x426f0f`), up to capacity from `0x481a60`. The detonator has no mark and shows bar 165. An empty pistol shows reload bar 124 (`0x427ce2`).
+- Weapon icon: column 4 of `0x482820` at (X+59,57). Shotgun mark 169 at (X+35,60) for the holder in shotgun-only mode.
+- Score: `CNumCounter` at (X+59,41), three digits from strip 118 under frame 33, wrapping at 1000 (`0x427100`). Each digit rolls one row per 100 ms (`0x427020`), forwards when the size grew. A negative score tints the digits red (`0x4365f0`).
+- Time: font 174, style 5, rectangle (358,45)–(444,95), in whole seconds.
+
+Web: `dist/hud.js`; tests `test/hud.test.mjs`. Approximations: the reload bar uses the web's reload fraction, not the original counter at `+0x122`; the red tint is an additive fill; the time colour is one shade instead of the four-entry palette. Not ported: the "Pauza" overlay on a paused network player's portrait (`+0xdc`, `+0xec`). The hint text above the game now shows on phones only.
+
 ## Audit status, 31 Oct 2026
 
 Assets are verified against the EXE. All resources the web did not use are now identified:
 
-- Bitmaps 22, 29, 128, 165, 169 and 172 belong to the HUD (`0x4280f0`, `0x427f28`). Weapon icons are column 4 of table `0x482820`: 172, 169, 170, 171, 168, 167 for types 0–5.
 - Bitmaps 132, 143 and 146 are parts of the vertical scrollbar of `CListBox` (table `0x4ae5a0`: up 142/138/146, thumb 132/130/134, down 139/135/143, used by `0x408370`). The web's list has no scrollbar, so entries past its height are not reachable.
 - Bitmap 74 has no reference in the code, the data tables or any script: it is unused in the original too.
 

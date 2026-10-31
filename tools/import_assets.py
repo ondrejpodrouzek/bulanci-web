@@ -323,6 +323,16 @@ def main():
             if n in BITMAPS:
                 im.save(original / f'{n}.png')
     (dirs['ui'] / 'index.json').write_text(json.dumps(index), encoding='utf8')
+    # Bitmap 29 has no palette of its own: CBulPicture draws it through the player's (0x40b050).
+    d = res[29][1]
+    w, h, stride = *struct.unpack_from('<II', d, 4), struct.unpack_from('<I', d, 16)[0]
+    for i, rgb in enumerate(metadata['original_player_colors']):
+        pal = player_palette(base, rgb)
+        rgba = bytearray()
+        for y in range(h):
+            for x in range(w):
+                rgba += bytes((*pal[d[30 + y * stride + x]], 255))
+        Image.frombytes('RGBA', (w, h), bytes(rgba)).save(dirs['ui'] / f'29-c{i}.png')
     for n, name in JPEGS.items():
         (out / name).write_bytes(res[n][1][4:])
     # Home-screen icons: the middle square of the title picture.

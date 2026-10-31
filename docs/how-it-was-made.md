@@ -46,9 +46,8 @@ The steps are in the [README](../README.md).
 
 ## What is not 1:1
 
-The game comes close to the original but is not an exact copy. The largest known difference is the
-in-game HUD: its panels differ, the portrait and counter are missing, and time is shown differently.
-The end of the [reconstruction log](../dist/reconstruction.md) lists the differences; the log keeps
+The game comes close to the original but is not an exact copy. A function-by-function audit of the game logic
+is still open. The end of the [reconstruction log](../dist/reconstruction.md) lists the differences; the log keeps
 verified findings apart from provisional values.
 
 ## Where to find details

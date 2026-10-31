@@ -9,6 +9,8 @@ import {KEYSETS,defaultHumans} from './players.js';
 import {RULE_DEFAULTS} from './rules.js';
 import {createDialogLayer} from './ui/layer.js';
 import {createGunMouse} from './ui/gun-mouse.js';
+import {createHud} from './hud.js';
+import {drawText} from './ui/font.js';
 import {gameTypeDialog,RULE_SUMMARY} from './ui/game-type-dialog.js';
 import {startGame1,startGame2,keysDialog} from './ui/start-game.js';
 import {msgDialog,nameUsedText} from './ui/msg-dialog.js';
@@ -60,7 +62,7 @@ async function showScore(ended){
   $('#result').hidden=true;$('#menu').hidden=false;$('#resume').hidden=true;menu=true;paused=true;showStartScreen();
 }
 let customHumans=null;
-async function start(){try{if(loading)await ready;dialogs.hide();if(!maps[$('#map-select').value])throw Error('Data mapy nejsou dostupná');mapKey=$('#map-select').value;const next=new Game({mapData:maps[mapKey],mode:$('#mode').value==='training'?'training':'local',humans:customHumans??defaultHumans($('#mode').value==='training'?1:$('#mode').value==='local3'?3:2),gameType:rulesState.type,limit:rulesState.limits[rulesState.type],weapons:rulesState.weapons,onEvent});await loadLevel(maps[mapKey],next.players);game=next;if(netPlay?.role==='host')netPlay.begin(game);if(location.search.includes('debug'))globalThis.bulanciGame=game;paused=false;menu=false;clear();acc=0;$('#menu').hidden=true;$('#result').hidden=true;$('#resume').hidden=false;canvas.focus();touch.setActive(true);message(touch.isMobile()?'Palec vlevo: pohyb · vpravo: střelba':(game.humans.length>1?'S F E D / J L I K / Num 4 6 8 5: pohyb · A / M / Num 0: střelba · Q / N / Num 1: zbraň':'Šipky: pohyb · mezerník: střelba · C: zbraň'));}catch(e){console.error(e);message('Spuštění se nezdařilo: '+e.message);}}
+async function start(){try{if(loading)await ready;dialogs.hide();if(!maps[$('#map-select').value])throw Error('Data mapy nejsou dostupná');mapKey=$('#map-select').value;const next=new Game({mapData:maps[mapKey],mode:$('#mode').value==='training'?'training':'local',humans:customHumans??defaultHumans($('#mode').value==='training'?1:$('#mode').value==='local3'?3:2),gameType:rulesState.type,limit:rulesState.limits[rulesState.type],weapons:rulesState.weapons,onEvent});await loadLevel(maps[mapKey],next.players);game=next;if(netPlay?.role==='host')netPlay.begin(game);if(location.search.includes('debug'))globalThis.bulanciGame=game;paused=false;menu=false;clear();acc=0;$('#menu').hidden=true;$('#result').hidden=true;$('#resume').hidden=false;canvas.focus();touch.setActive(true);if(phoneMenu)message(touch.isMobile()?'Palec vlevo: pohyb · vpravo: střelba':(game.humans.length>1?'S F E D / J L I K / Num 4 6 8 5: pohyb · A / M / Num 0: střelba · Q / N / Num 1: zbraň':'Šipky: pohyb · mezerník: střelba · C: zbraň'));}catch(e){console.error(e);message('Spuštění se nezdařilo: '+e.message);}}
 function direction(codes){for(let i=keys.length-1;i>=0;i--){const d=codes.indexOf(keys[i]);if(d>=0)return d;}return undefined;}
 // Each human reads the original key set of its profile (players.js); touch drives player 1.
 function input(){const t=touch.read();return (game?.players??[]).map((p,slot)=>{if(p.bot)return {};if(netPlay?.owners&&netPlay.owners[slot]!==0)return netPlay.host.input(slot);const k=KEYSETS[p.keys??0];const i={direction:direction(k.slice(0,4)),fire:keys.includes(k[4])};if(p.id===0){i.direction=t.direction??i.direction;i.fire=i.fire||t.fire;}return i;});}
@@ -102,7 +104,7 @@ const layerSrc=l=>l.resource===310?'assets/disco.jpg':`assets/original/${l.resou
 const layerIsFg=(l,i)=>l.fg===undefined?i>0:!!l.fg;
 // Player panel origins (0x4af924) and CSpells icons: bitmap 78 cut at the same x as drawn
 // (0x4278c0 rect table 0x4b39b8: eye 25..36, shield 0..11, ammo 13..23), panel offset (6,41).
-const HUD_X=[12,149,556,693],SPELL_RECTS=[[25,11],[0,11],[13,10]];
+const hud=createHud({image,drawText}),HUD_X=[12,149,556,693],SPELL_RECTS=[[25,11],[0,11],[13,10]];
 // Scene CAnimation: loops follow the clock, one-shot (Malárie, crane) frames come from scene-anims.js.
 const drawAnim=(o,i)=>{const [dx,dy]=sceneAnimOffset(game,i);if(manifest.resources[o.resource])sprite(o.resource,o.x+dx,o.y+dy,game?.elapsed??0,true,null,sceneAnimFrame(game,o,i));};
 function render(){display.begin();ctx.fillStyle='#000';ctx.fillRect(0,0,800,600);const map=game?.map??maps[mapKey];if(map){map.layers.forEach((l,i)=>{if(!layerIsFg(l,i))drawImage(layerSrc(l),l.x,l.y);});(map.animations??[]).forEach((o,i)=>{if(!o.layer)drawAnim(o,i);});
@@ -136,8 +138,8 @@ function render(){display.begin();ctx.fillStyle='#000';ctx.fillRect(0,0,800,600)
  for(const t of top.sort((a,b)=>a.at-b.at))t.draw();
  }if(phoneMenu)return; // phones show the whole field and their own HUD (touch-controls.js)
  drawImage('assets/original/117.png',0,495,800,105);
- const shownTime=game?game.time:($('#mode').value==='training'?150:rulesState.type==='time'?rulesState.limits.time:Infinity),time=Math.ceil(shownTime);if(Number.isFinite(time)){ctx.fillStyle='#222';ctx.font='bold 12px Tahoma';ctx.textAlign='center';ctx.fillText(`${Math.floor(time/60)}:${String(time%60).padStart(2,'0')}`,400,551);}
- if(game)for(const p of game.players){const x=HUD_X[p.id];for(const [bit,name] of ['invisible','shield','ammo'].entries())if(p.effects?.[name]>0){const [l,w]=SPELL_RECTS[bit],im=image('assets/original/78.png');if(im.complete&&im.naturalWidth)ctx.drawImage(im,l,0,w,14,x+6+l,536,w,14);}ctx.textAlign='left';ctx.fillStyle='#eee';ctx.font='10px Tahoma';ctx.fillText(p.name,x+4,512);ctx.font='bold 17px Tahoma';ctx.fillText(String(p.score).padStart(2,'0'),x+7,539);ctx.font='9px Tahoma';ctx.fillStyle='#ccc';ctx.fillText(WEAPONS[p.weapon].name,x+4,557);ctx.fillStyle='#e13e36';for(let i=0;i<p.ammo[p.weapon];i++)ctx.fillRect(x+5+i*7,567,4,10);if(p.reloading>0){ctx.fillStyle='#ccc';ctx.fillText('Nabíjení...',x+4,590);}}
+ hud.draw(ctx,game,Math.ceil(game?game.time:($('#mode').value==='training'?150:rulesState.type==='time'?rulesState.limits.time:Infinity)),performance.now());
+ if(game)game.players.filter(p=>!p.bot).forEach((p,i)=>{const x=HUD_X[i];for(const [bit,name] of ['invisible','shield','ammo'].entries())if(p.effects?.[name]>0){const [l,w]=SPELL_RECTS[bit],im=image('assets/original/78.png');if(im.complete&&im.naturalWidth)ctx.drawImage(im,l,0,w,14,x+6+l,536,w,14);}});
  if(location.search.includes('debug')&&map){ctx.save();ctx.lineWidth=1;ctx.strokeStyle='rgba(255,40,40,.85)';for(const o of map.obstacles)ctx.strokeRect(o.x+.5,o.y+.5,o.w,o.h);if(game){ctx.strokeStyle='rgba(0,230,255,.95)';for(const p of game.players){if(p.dead>0)continue;const r={x:p.x-55/2+2,y:p.y-62+12+25,w:51,h:37};ctx.strokeRect(r.x+.5,r.y+.5,r.w,r.h);ctx.fillStyle='#ff0';ctx.fillRect(p.x-1,p.y-1,2,2);}}ctx.restore();}
 }
 function phoneHud(){const me=netPlay?.role==='guest'?Math.max(0,game.humans.findIndex(h=>h.peer===netPlay.net.peer)):0,p=game.players[me];if(!p)return;const left=Math.ceil(game.time);touch.updateHud({players:game.players,me,time:Number.isFinite(left)?`${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`:'∞',weapon:WEAPONS[p.weapon]?.name??'',ammo:p.reloading>0?'…':String(p.ammo[p.weapon]??0)});}
