@@ -30,7 +30,7 @@ test('"na zásahy" has no clock and ends when a player reaches the limit',()=>{
 test('"na životy" counts lives down, an eliminated player stays out, last one standing ends it',()=>{
  const g=local('lives',5),[a,b]=g.players;
  assert.equal(a.score,5);
- for(let i=0;i<4;i++){g.kill(b,a.id);run(g,2.3);}
+ for(let i=0;i<4;i++){g.kill(b,a.id);run(g,3.1);}
  assert.equal(b.score,1);assert.equal(b.dead,0,'still respawns');assert.equal(g.over,false);
  g.kill(b,a.id);assert.equal(b.score,0);assert.equal(g.over,true,'one human left');
  assert.deepEqual(ranking(g).map(p=>p.id),[0,1]);

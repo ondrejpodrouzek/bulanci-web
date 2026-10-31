@@ -27,7 +27,7 @@ test('"pouze brokovnice": one shotgun at the start, back on the map when emptied
 test('a human loses weapons 1..5 at death but keeps the pistol rounds (0x41f900)',()=>{
  const g=make();const p=g.players[0];Object.assign(p,{x:300,y:250,dead:0,ammo:[3,4,2,0,4,2],weapon:4});
  g.kill(p,1);assert.deepEqual(p.ammo,[3,0,0,0,0,0]);assert.equal(p.weapon,0);
- run(g,2.3);assert.equal(p.dead,0);assert.equal(p.ammo[0],3,'pistol rounds kept after respawn');
+ run(g,3.1);assert.equal(p.dead,0);assert.equal(p.ammo[0],3,'pistol rounds kept after respawn');
 });
 
 test('a tick spawns with chance 80/101 (0x41f083)',()=>{

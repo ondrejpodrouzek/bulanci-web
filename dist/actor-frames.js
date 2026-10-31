@@ -1,7 +1,20 @@
 import {MOVEMENT_DATA,SPRITE_DATA,WEAPON_DATA} from './original-data.js';
 
 export const bodyResource = p => (p.undead?[199,201,203,197]:[198,200,202,196])[p.direction];
-export const deathResource = p => (p.undead?[207,209,211,205]:[206,208,210,204])[p.direction];
+// CDeath 0x41c610. Flag 0x80 (a close blast, every undead): torn apart, tables 0x4aeff8 / 0x4af008.
+// Anything else lies down and bleeds: table 0x4aefb8 by shot direction + facing*4; a facing with no
+// entry falls to the nearest row (up for sideways shots, down for vertical ones).
+const TORN=[206,208,210,204],TORN_UNDEAD=[207,209,211,205],FALL=[297,298,0,0,299,300,0,0,0,0,302,301,0,0,296,295];
+export function deathChoice(facing,direction,blast,undead) {
+  if(undead||blast)return {resource:(undead?TORN_UNDEAD:TORN)[direction],direction};
+  let i=direction+facing*4;const step=direction<2?-4:4;
+  while(!FALL[i])i+=step;
+  return {resource:FALL[i],direction:i>>2};
+}
+export const deathResource = p => p.deathRes??(p.undead?TORN_UNDEAD:TORN)[p.direction];
+// One-shot animations stop on entering the ring frame (0x439b90): the body goes and the character
+// returns at that moment (0x417a90, message 0xf6 -> 0x420480).
+export const deathSeconds = resource => {const d=SPRITE_DATA[resource];return d.duration_ticks*(d.frames-1)/d.frames/1000;};
 export function weaponFrame(p) {
   const w=WEAPON_DATA[p.weapon];
   return p.cooldown>0 && p.lastShotWeapon===p.weapon

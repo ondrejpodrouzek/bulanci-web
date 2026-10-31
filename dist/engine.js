@@ -4,7 +4,7 @@
 // drift (-4..4px/step). Brokovnice is one CShot kind1 carrying a five-pellet mask (0x41df60).
 import {WEAPON_DATA,PIPE_NETWORK,MOVEMENT_DATA,SHOT_DATA} from './original-data.js';
 import {blocksActors,blocksShots,clipActorAxis,canPlaceActor,segmentRectTime} from './collision.js';
-import {actorLayout,bodyResource,actorAnchor} from './actor-frames.js';
+import {actorLayout,bodyResource,actorAnchor,deathChoice,deathSeconds} from './actor-frames.js';
 import {isExitus,prepareExitus,updateUndead,resetWander} from './exitus.js';
 import {isBedtime,prepareBedtime,createCreatures,updateCreatures,creatureVulnerable,hitCreature} from './bedtime.js';
 import {updateTrainingBot,trainingRespawnWeapon,trainingWeaponEnded,armTeleport,TELEPORT_MS} from './training.js';
@@ -131,9 +131,9 @@ export class Game{
   else if(type===1){if(!free)p.ammo[1]--;this.spawnBullet(p,1,p.direction);this.onEvent({type:'shot',player:p,weapon:1});}
   else if(type===0){if(!free)p.ammo[0]--;this.spawnBullet(p,0,p.direction);this.onEvent({type:'shot',player:p,weapon:0});if(p.ammo[0]<=0)p.reloading=this.reloadTime();}
  }
- hit(target,bullet){this.kill(target,bullet.owner);}
+ hit(target,bullet){this.kill(target,bullet.owner,{direction:bullet.direction??(bullet.vx<0?0:bullet.vx>0?1:bullet.vy<0?2:3)});}
  kill(target,ownerId,options={}){if(target.dead)return;if(hasEffect(target,'shield'))return; // death message ignored under +0x19a (0x420d80)
- this.cancelWeaponAction(target,false);if(options.direction!==undefined)target.direction=options.direction;target.deathAnchor=actorAnchor(target);target.dead=2.201;target.deathElapsed=0;target.deaths++;target.moving=false;humanDied(this,target);const owner=this.actors().find(p=>p.id===ownerId);if(owner&&ownerId!==target.id){owner.kills=(owner.kills??0)+1;(owner.victims??={})[target.id]=(owner.victims[target.id]??0)+1;} // per-victim kills: record +0xea+4*victimthis.onEvent({type:'kill',player:owner,victim:target});
+ this.cancelWeaponAction(target,false);target.deathAnchor=actorAnchor(target);const fall=deathChoice(target.direction,options.direction??target.direction,options.blast,target.undead);target.direction=fall.direction;target.deathRes=fall.resource;target.dead=deathSeconds(fall.resource);target.deathElapsed=0;target.deaths++;target.moving=false;humanDied(this,target);const owner=this.actors().find(p=>p.id===ownerId);if(owner&&ownerId!==target.id){owner.kills=(owner.kills??0)+1;(owner.victims??={})[target.id]=(owner.victims[target.id]??0)+1;} // per-victim kills: record +0xea+4*victimthis.onEvent({type:'kill',player:owner,victim:target});
   if(owner&&ownerId!==target.id)afterKill(this,owner);afterDeath(this,target);}
  finish(){if(this.over)return;this.over=true;this.onEvent({type:'end'});}
  explode(x,y,ownerId,rect={x:x-1,y:y-1,w:2,h:2},at=this.elapsed){return startExplosion(this,rect,ownerId,at);}
@@ -171,7 +171,7 @@ export class Game{
  applyShotHit(b,first,at){
    if(first.kind==='pipe'){const pipe=first.target,dir=b.direction??(b.vx<0?0:b.vx>0?1:b.vy<0?2:3);if(dir===pipe.incoming_direction)this.pending.push({kind:'pipe',owner:b.owner,dir:pipe.exit.direction,x:pipe.exit.x,y:pipe.exit.y,type:0,at:at+PIPE_NETWORK.delay_ms/1000});}
    else if(b.explodes)this.explode(b.x,b.y,b.owner,{x:b.x,y:b.y,w:b.width??2,h:b.height??2},at);
-   else if(first.kind==='actor')this.kill(first.target,b.owner);
+   else if(first.kind==='actor')this.kill(first.target,b.owner,{direction:b.direction??(b.vx<0?0:b.vx>0?1:b.vy<0?2:3)});
    else if(first.kind==='creature')hitCreature(this,first.target,b);
    else if(first.target.hitCallback!=null&&this.eight)eightBitShotHit(this,first.target.hitCallback);
  }

@@ -33,10 +33,10 @@ export function explosionDamage(g,e,at) {
     candidates.push(p.dead<=0?{rect:playerRect(p.x,p.y),actor:p}:{rect:playerRect(p.x,p.y),obstacle:{}});
   }
   if(!candidates.length)return; // Native 0x41e19d guard also gates chain reactions.
-  function probe(r,direction) {
+  function probe(r,direction,blast) {
     for(const c of [...candidates].reverse())if(rectsOverlap(r,c.rect)) {
       if(c.actor){
-        if(c.actor.dead<=0)g.kill(c.actor,e.owner,{direction,explosion:true});
+        if(c.actor.dead<=0)g.kill(c.actor,e.owner,{direction,explosion:true,blast});
         // CBulanek stays in its scene slot after death. The native probe
         // refreshes that slot up to four times, then returns true (ray stop).
         return true;
@@ -49,11 +49,11 @@ export function explosionDamage(g,e,at) {
     return false;
   }
   const center={x:Math.trunc((e.x+e.x+e.w-4)/2),y:Math.trunc((e.y+e.y+e.h-4)/2),w:4,h:4};
-  probe(center,0);
+  probe(center,0,true);
   const vectors=DATA.explosion.collision.vectors;
   for(let index=7;index>=0;index--) {
     const r={...center},[dx,dy]=vectors[index];
-    for(let step=0;step<15;step++){r.x+=dx;r.y+=dy;if(probe(r,index%4))break;}
+    for(let step=0;step<15;step++){r.x+=dx;r.y+=dy;if(probe(r,index%4,step<11))break;} // only the first 11 steps tear apart (0x41e25c)
   }
   for(const m of g.mines)if(!m.dead&&rectsOverlap(bounds,m))detonateMine(g,m,at);
 }

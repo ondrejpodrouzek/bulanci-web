@@ -258,3 +258,24 @@ By default the server listens only on 127.0.0.1; for LAN play start it with `BUL
 t52 chunks 14 and 15 (`0x432dd5`, `0x432def`) unpack, with the same routines as the image (`0x432740`, `0x432780`), an alpha plane w×h into bitmap `+0x20`. The export used to drop them, so shadows (black, index 0, alpha 95–96) and smoke with soft transitions (alpha 0–254) were opaque. Blending is per channel through table `0x4b84f8` in 565; the web uses normal canvas alpha compositing, without the 565 rounding.
 
 Open differences: the HUD is not a port of the original. Constructor `0x4280f0` creates panels only by `config+0xd8` (human players) at X from `0x4af924`; the web draws panels for opponents too, with its own texts. The portrait, counter and weapon icon are missing (bitmaps 22, 29, 128, 169, 172, fonts 174 and 175). The original writes time as seconds in the rectangle (358, 45, 444, 95), the web as m:ss. The hint text above the game is a web addition.
+
+## Update 31 Oct 2026: how a bulánek dies
+
+The web used to play the torn-apart animations 204–210 for every death. In the EXE those are only for flag 0x80.
+
+- `0x41f900` receives the shot direction, or the blast ray direction, in the low bits of the message and creates `CDeath`. Exitus undead always get flag 0x80 (`0x41f93d`).
+- Flag 0x80 comes from a blast: the central probe, and the first 11 of the 15 steps of each ray (`0x41e25c`, `esi > 3`). A blast further away kills like a shot.
+- With the flag, `0x41c610` takes the torn-apart animation from table `0x4aeff8` (204–210), for undead from `0x4af008`.
+- Without it the character lies down and bleeds: table `0x4aefb8` at `direction + facing*4` gives 295–302. A facing with no entry moves to the nearest row, -4 for sideways shots and +4 for vertical ones, and the character turns to that row.
+- The body lies only while the animation plays. `0x417a90` hides it when the one-shot animation stops on its ring frame and sends message 0xf6, so the character returns at that moment with no extra delay: 2720 ms or 2975 ms for 295–302, 2130 ms for 204–211.
+
+Web: `deathChoice`, `deathSeconds` in `actor-frames.js`, `kill` in `engine.js`, `probe` in `mines.js`; tests `test/death.test.mjs`. Not ported: the body's exact drawing depth (`0x41c7c3`).
+
+## Audit status, 31 Oct 2026
+
+Assets are verified against the EXE. A check of resources the web never uses gave these open items, none yet analysed:
+
+- Bitmaps 22, 29, 128, 165, 169, 172 belong to the HUD (`0x4280f0`, `0x427f28`), see the open differences above.
+- Bitmaps 74, 132, 143, 146, 171 and animations 265–267 (13 px tall, chunk 13, referenced by script 323) have no known use.
+
+The game logic has not been compared function by function. Earlier updates cover what was ported, but a port is not proof that nothing else is missing, as this death bug shows.
