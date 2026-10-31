@@ -295,4 +295,10 @@ Assets are verified against the EXE. All resources the web did not use are now i
 - Bitmaps 132, 143 and 146 are parts of the vertical scrollbar of `CListBox` (table `0x4ae5a0`: up 142/138/146, thumb 132/130/134, down 139/135/143, used by `0x408370`). The web's list has no scrollbar, so entries past its height are not reachable.
 - Bitmap 74 has no reference in the code, the data tables or any script: it is unused in the original too.
 
+Logic audit by area:
+
+- Death: done, see above. Pointer and HUD: done, see above.
+- Sound calls: the EXE plays samples from 24 call sites of `0x422430`. In-game ones match the web. The interface is silent in the web, while the original plays sample 14 on a radio change (`0x402fb0`), sample 20 on a `CIcon` click (`0x403ea0`) and a per-widget sample on commands (`0x4030b0`, field `+0x94`, set by each dialog). Not ported yet.
+- Not audited: movement, shots, weapons, bots, undead, creatures, game rules, network messages.
+
 The game logic has not been compared function by function. Earlier updates cover what was ported, but a port is not proof that nothing else is missing, as the death bug showed.
