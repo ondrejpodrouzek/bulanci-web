@@ -39,7 +39,7 @@ function strip(f,color) {
   return c;
 }
 export function drawText(ctx,fontId,text,rect,{flags=0,spacing=1,leading=0,alpha=1,color=null}={}) {
-  const f=font(fontId);if(!f)return;const image=strip(f,color);
+  const f=font(fontId);if(!f||!f.image?.naturalWidth)return;const image=strip(f,color); // text can be asked for before the strip has loaded
   const lines=String(text).split('\n'),lineH=lineHeight(f)+leading,total=lines.length*lineH-leading;
   const v=flags&0xc;let y=v===4?rect.y+Math.trunc((rect.h-total)/2):v===8?rect.y+rect.h-total:rect.y;
   const prev=ctx.globalAlpha;ctx.globalAlpha=prev*alpha;

@@ -98,7 +98,7 @@ export class Game{
   let delay=speed===100?motion.frame_delays_ms[state.frame]:Math.trunc(47.25/(speed/100));
   while(state.ms+1e-7>=delay){
    state.ms-=delay;
-   const step=motion.cycle[state.frame],others=this.actors().filter(a=>a!==p&&a.spawned!==false&&a.active!==false&&a.dead<=0).map(a=>playerRect(a.x,a.y));
+   const step=motion.cycle[state.frame],others=this.actors().filter(a=>a!==p&&a.spawned!==false&&a.active!==false).map(a=>playerRect(a.x,a.y));
    const obstacles=this.map.obstacles.filter(blocksActors).concat(others);
    const dx=clipActorAxis(playerRect(p.x,p.y),step.delta[0],'x',obstacles);p.x+=dx;
    const dy=clipActorAxis(playerRect(p.x,p.y),step.delta[1],'y',obstacles);p.y+=dy;
@@ -133,7 +133,10 @@ export class Game{
  }
  hit(target,bullet){this.kill(target,bullet.owner,{direction:bullet.direction??(bullet.vx<0?0:bullet.vx>0?1:bullet.vy<0?2:3)});}
  kill(target,ownerId,options={}){if(target.dead)return;if(hasEffect(target,'shield'))return; // death message ignored under +0x19a (0x420d80)
- this.cancelWeaponAction(target,false);target.deathAnchor=actorAnchor(target);const fall=deathChoice(target.direction,options.direction??target.direction,options.blast,target.undead);target.direction=fall.direction;target.deathRes=fall.resource;target.dead=deathSeconds(fall.resource);target.deathElapsed=0;target.deaths++;target.moving=false;humanDied(this,target);const owner=this.actors().find(p=>p.id===ownerId);if(owner&&ownerId!==target.id){owner.kills=(owner.kills??0)+1;(owner.victims??={})[target.id]=(owner.victims[target.id]??0)+1;} // per-victim kills: record +0xea+4*victimthis.onEvent({type:'kill',player:owner,victim:target});
+ this.cancelWeaponAction(target,false);target.deathAnchor=actorAnchor(target);const fall=deathChoice(target.direction,options.direction??target.direction,options.blast,target.undead);target.direction=fall.direction;target.deathRes=fall.resource;target.dead=deathSeconds(fall.resource);target.deathElapsed=0;target.deaths++;target.moving=false;humanDied(this,target);const owner=this.actors().find(p=>p.id===ownerId);
+ // Message 0xd8 credits the shooter with no check for a suicide (0x420dd6); per-victim kills: record +0xea+4*victim.
+ if(owner){owner.kills=(owner.kills??0)+1;(owner.victims??={})[target.id]=(owner.victims[target.id]??0)+1;}
+ this.onEvent({type:'kill',player:owner,victim:target,blast:!!options.blast,shotgun:owner?.weapon===1});
   if(owner&&ownerId!==target.id)afterKill(this,owner);afterDeath(this,target);}
  finish(){if(this.over)return;this.over=true;this.onEvent({type:'end'});}
  explode(x,y,ownerId,rect={x:x-1,y:y-1,w:2,h:2},at=this.elapsed){return startExplosion(this,rect,ownerId,at);}
@@ -146,7 +149,9 @@ export class Game{
    const c=o.creatureId!==undefined?this.creatures.find(c=>c.id===o.creatureId):null;
    consider(o,c&&creatureVulnerable(c)?'creature':'wall',c??o);
   }
-  for(const p of this.actors())if(p.id!==owner&&p.active!==false&&p.dead<=0)consider(playerRect(p.x,p.y),'actor',p);
+  // 0x418300 does not skip the shooter (a pipe can return a shot to it), and CDeath takes over the
+  // character's rectangle with +0x69 set (0x41c82b): a lying body stops shots like a wall.
+  for(const p of this.actors())if(p.active!==false&&p.spawned!==false)consider(playerRect(p.x,p.y),p.dead>0?'wall':'actor',p.dead>0?{}:p);
   return first;
  }
  advanceShotgun(b,ex,ey,at){

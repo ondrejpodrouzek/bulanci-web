@@ -299,6 +299,13 @@ Logic audit by area:
 
 - Death: done, see above. Pointer and HUD: done, see above.
 - Sound calls: the EXE plays samples from 24 call sites of `0x422430`. In-game ones match the web. The interface is silent in the web, while the original plays sample 14 on a radio change (`0x402fb0`), sample 20 on a `CIcon` click (`0x403ea0`) and a per-widget sample on commands (`0x4030b0`, field `+0x94`, set by each dialog). Not ported yet.
-- Not audited: movement, shots, weapons, bots, undead, creatures, game rules, network messages.
+- Hits and deaths: done. Found and fixed:
+  - The `kill` event was never sent: a comment had swallowed the call, so no death sound or line played.
+  - A lying body is solid. `CDeath` takes over the character's rectangle with `+0x69` set (`0x41c82b`), and `0x418300` tests every such object, so it stops shots and walkers and blocks spawn places.
+  - `0x418300` does not skip the shooter, so a pipe can return a shot to its owner. Normal firing cannot hit the shooter: 128 weapon, direction and frame combinations gave none.
+  - A suicide counts as a kill: message 0xd8 has no such check (`0x420dd6`, `0x417f14`).
+  - Sample 22 plays when the shooter holds the shotgun (`0x417f80`, `0x416630`), not for rockets.
+  - After the death sound comes the victim's line, then message 0xdb gives the shooter a taunt (`0x420e2b`, `0x420ee8`). Flag 0x80 skips sound and line and goes straight to the taunt (`0x41f9d2`).
+- Not audited: movement, weapon timing, bots, undead, creatures, game rules, network messages.
 
 The game logic has not been compared function by function. Earlier updates cover what was ported, but a port is not proof that nothing else is missing, as the death bug showed.

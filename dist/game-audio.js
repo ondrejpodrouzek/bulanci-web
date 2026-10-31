@@ -301,12 +301,16 @@ export class GameAudio extends EventTarget {
         if(name)this.effect(name,{x});break;
       }
       case 'kill': {
-        const victim=event.victim;
-        if(victim?.undead)break; // native death flag0x80 bypasses the normal human death/voice path
-        const generation=this.generation;
+        // 0x41f900: a sound, then the victim's line, then message 0xdb gives the shooter a taunt
+        // (0x420e2b, 0x420ee8). Flag 0x80 (undead, close blast) goes straight to the taunt.
+        const victim=event.victim,killer=event.player,generation=this.generation;
+        const taunt=()=>{if(killer&&killer!==victim&&generation===this.generation&&!game?.over&&killer.dead<=0&&killer.active!==false)this.voice('taunt',killer);};
+        if(victim?.undead||event.blast){taunt();break;}
         this.voiceKeys.get(`player-${victim?.id}`)?.stop();
-        this.effect(event.rocket?'rocketDeath':'death',{x:victim?.x ?? x}).then(played=>{
-          if (!victim?.npc && played && generation===this.generation && !game?.over && (!victim || victim.dead>0)) this.voice('afterDeath',victim);
+        this.effect(event.shotgun?'shotgunDeath':'death',{x:victim?.x ?? x}).then(played=>{
+          if(!played||generation!==this.generation||game?.over||(victim&&victim.dead<=0))return;
+          if(victim?.npc){taunt();return;}
+          this.voice('afterDeath',victim).then(taunt);
         }); break;
       }
       case 'spawn': case 'respawn': this.voice('spawn',player); break;

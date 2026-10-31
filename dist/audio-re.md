@@ -32,7 +32,7 @@ The global bank is resource **4**, not bank 0: initialisation `0x402b65` loads `
 | Round end | 4 / 17 | `0x41d64c` |
 | Pickup | 4 / 18 | `0x419d99` |
 | Hit / death | 4 / 23 | `0x41f9a5` |
-| Rocket hit | 4 / 22 | `0x41f9b3` |
+| Death, shooter holds the shotgun | 4 / 22 | `0x41f9b3`, `0x417f80` |
 | Teleport | 4 / 36 | `0x41db6c` |
 | Explosion | 3 / 1 | `0x41cf4c..0x41cf65`, level bank `0x4b3730` initialised from resource 3 |
 

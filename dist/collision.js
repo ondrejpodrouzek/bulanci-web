@@ -61,5 +61,5 @@ export function canPlaceActor(x,y,obstacles,actors=[],ignore=null) {
   const r=playerRect(x,y);
   if(r.x<0||r.y<0||r.x+r.w>WORLD_WIDTH||r.y+r.h>WORLD_HEIGHT)return false;
   if(obstacles.some(o=>blocksActors(o)&&rectsOverlap(r,o)))return false;
-  return !actors.some(a=>a!==ignore && a.spawned!==false && a.dead<=0 && a.x!==undefined && rectsOverlap(r,playerRect(a.x,a.y)));
+  return !actors.some(a=>a!==ignore && a.spawned!==false && a.x!==undefined && rectsOverlap(r,playerRect(a.x,a.y)));
 }

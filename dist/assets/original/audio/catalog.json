@@ -159,7 +159,7 @@
       "bank": 4,
       "sample": 23
     },
-    "rocketDeath": {
+    "shotgunDeath": {
       "bank": 4,
       "sample": 22
     },
@@ -711,7 +711,7 @@
     "spawn": "0x41f88c -> 0x416670 -> table0x4aef98",
     "afterDeath": "0x420e56 -> 0x416690 -> table0x4aefa8",
     "taunt": "0x420f0a -> 0x4166b0 -> table0x4aef88",
-    "death": "0x41f9a5..0x41fa0b: sample23 or22 for weaponType1",
+    "death": "0x41f9a5..0x41fa0b: sample 22 when the shooter holds the shotgun, otherwise 23",
     "pan": "0x422500: clamp(xCenter,0,800)*3000/800-1500 DirectSound hundredths dB",
     "menu": "0x425301 /0x42531a: resources330/329",
     "pause": "0x420148: resource331"
