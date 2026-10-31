@@ -1,9 +1,10 @@
 // Serves the assets a player imported from their own bulanci.exe (import.html). The game keeps
 // using its normal assets/ paths; whatever is not imported comes from the server.
-const CACHE='bulanci-exe-assets-v1';
+const CACHE='bulanci-exe-assets-v2';
 
 addEventListener('install',()=>skipWaiting());
-addEventListener('activate',event=>event.waitUntil(clients.claim()));
+// A new data version asks for the EXE again: old data lacks what the new code needs.
+addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('bulanci-exe-assets-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>clients.claim())));
 
 async function serve(request) {
   const url=new URL(request.url);url.search='';
