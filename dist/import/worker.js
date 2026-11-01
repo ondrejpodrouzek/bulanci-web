@@ -1,6 +1,6 @@
 // Runs the import off the main thread and stores the assets in the browser's Cache Storage,
 // where sw.js serves them. poems.json is written last: it marks a finished import.
-import {buildAssets,NotBulanci} from './exe-assets.js';
+import {buildAssets,exeFromZip,NotBulanci} from './exe-assets.js';
 import {CACHE,DONE_MARK} from './store.js';
 
 const assets=new URL('../assets/',import.meta.url);
@@ -8,7 +8,7 @@ const canvas={decode:bytes=>createImageBitmap(new Blob([bytes],{type:'image/jpeg
 
 onmessage=async({data:file})=>{
   try{
-    const exe=new Uint8Array(await file.arrayBuffer()),manifest=await fetch(new URL('original/sprites/manifest.json',assets)).then(r=>r.json());
+    const bytes=new Uint8Array(await file.arrayBuffer()),exe=bytes[0]===0x50&&bytes[1]===0x4b?await exeFromZip(bytes):bytes,manifest=await fetch(new URL('original/sprites/manifest.json',assets)).then(r=>r.json());
     await caches.delete(CACHE);
     const cache=await caches.open(CACHE);let marker=null;
     for await(const {path,data} of buildAssets(exe,manifest,canvas,value=>postMessage({progress:value}))){

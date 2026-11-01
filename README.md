@@ -22,7 +22,7 @@ You need Node.js 20+ and a current browser. Nothing has to be installed.
 npm start        # http://127.0.0.1:4173
 ```
 
-Open the address and select `bulanci.exe` v1.80. It takes about half a minute and is needed only
+Open the address and select `bulanci.exe` v1.80, or the `.zip` it comes in, or agree to download it. It takes about half a minute and is needed only
 once, unless you clear your browser data. The game's interface is in Czech, like the original.
 
 ## Network play
@@ -41,22 +41,23 @@ keys and receive the game state 30 times a second. The server (`net-server.mjs`,
 ## Deploying to a VPS
 
 Only this repository goes on the server. **Never put `bulanci.exe` or `dist/assets` with game data
-there.** The import requires HTTPS (except on `localhost`), which Caddy provides.
+there.** On Debian or Ubuntu, point your domain at the server, open ports 80 and 443, then run:
 
 ```sh
-sudo apt install nodejs caddy
-sudo git clone https://github.com/ondrejpodrouzek/bulanci-web /opt/bulanci-web
-sudo useradd --system bulanci
-sudo cp /opt/bulanci-web/deploy/bulanci.service /etc/systemd/system/
-sudo systemctl enable --now bulanci
+curl -fsSL https://raw.githubusercontent.com/ondrejpodrouzek/bulanci-web/main/deploy/install.sh -o install.sh
+sudo bash install.sh hra.example.cz
 ```
 
-Put `deploy/Caddyfile` with your domain into `/etc/caddy/Caddyfile` and run
-`sudo systemctl reload caddy`. The domain must point at the server and ports 80 and 443 must be
-open.
+The script installs Node.js 20+ and Caddy, which handles HTTPS and WebSockets, runs the game as a
+service and is safe to run again to update. The import requires HTTPS except on `localhost`.
 
-Environment variables: `BULANCI_HOST` (default `127.0.0.1`), `PORT` (default `4173`). Keep the
-server on `127.0.0.1` behind the proxy.
+With a server, `import.html` also offers to fetch the freeware archive from bulanci.cz after the
+player agrees. That site does not allow browsers to download from it directly, so the server relays
+the file without storing it, and only that address. The browser checks its SHA-256.
+`BULANCI_DOWNLOAD=0` turns this off.
+
+Environment variables: `BULANCI_HOST` (default `127.0.0.1`), `PORT` (default `4173`),
+`BULANCI_DOWNLOAD`. Keep the server on `127.0.0.1` behind the proxy.
 
 ## Development
 

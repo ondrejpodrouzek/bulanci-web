@@ -58,6 +58,26 @@ function inflateBlock(src,start,limit) {
   return {data:out.subarray(0,n),end:pos+4};
 }
 
+// The freeware archive holds one file, bulanci.exe. A dropped .zip works the same way.
+export async function exeFromZip(zip) {
+  const v=view(zip);let end=zip.length-22;
+  while(end>=0&&v.getUint32(end,true)!==0x06054b50)end--;
+  if(end<0)throw new NotBulanci('Archiv je poškozený.');
+  let at=v.getUint32(end+16,true);
+  for(let left=v.getUint16(end+10,true);left>0;left--) {
+    const method=v.getUint16(at+10,true),packed=v.getUint32(at+20,true),nameLen=v.getUint16(at+28,true),extra=v.getUint16(at+30,true),note=v.getUint16(at+32,true),local=v.getUint32(at+42,true);
+    const name=new TextDecoder().decode(zip.subarray(at+46,at+46+nameLen));
+    if(/(^|\/)bulanci\.exe$/i.test(name)) {
+      const start=local+30+v.getUint16(local+26,true)+v.getUint16(local+28,true),data=zip.subarray(start,start+packed);
+      if(method===0)return data;
+      if(method!==8)throw new NotBulanci('Archiv je zabalený neznámým způsobem.');
+      return new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+    }
+    at+=46+nameLen+extra+note;
+  }
+  throw new NotBulanci('V archivu není bulanci.exe.');
+}
+
 function sections(exe){const v=view(exe),pe=v.getUint32(0x3c,true),count=v.getUint16(pe+6,true),table=pe+24+v.getUint16(pe+20,true);
   return range(0,count).map(i=>{const at=table+i*40+8;return {virtualSize:v.getUint32(at,true),va:v.getUint32(at+4,true),size:v.getUint32(at+8,true),raw:v.getUint32(at+12,true)};});}
 
