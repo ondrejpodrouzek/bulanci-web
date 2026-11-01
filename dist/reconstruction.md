@@ -306,6 +306,11 @@ Logic audit by area:
   - A suicide counts as a kill: message 0xd8 has no such check (`0x420dd6`, `0x417f14`).
   - Sample 22 plays when the shooter holds the shotgun (`0x417f80`, `0x416630`), not for rockets.
   - After the death sound comes the victim's line, then message 0xdb gives the shooter a taunt (`0x420e2b`, `0x420ee8`). Flag 0x80 skips sound and line and goes straight to the taunt (`0x41f9d2`).
-- Not audited: movement, weapon timing, bots, undead, creatures, game rules, network messages.
+- Player reports, 1 Nov 2026, all fixed:
+  - Music gap per loop: each MP3 starts with about 1100–1470 samples of codec silence and an audio element adds its own gap. The web now loops a decoded buffer between the first and last sounding sample. The original's own loop point is not verified.
+  - Walking: stopping shows frame 0 and puts the swaying axis back on the walking line (`0x417910`, `0x420975`).
+  - Pickup sound: sample 18 is the tick of the last five seconds (`0x419d60`). Pickups use table `0x481d38`.
+  - Undead have their own three voice lines (`0x416670`, `0x416690`, `0x4166b0`).
+- Not audited: weapon timing, bots, undead behaviour, creatures, game rules, network messages.
 
 The game logic has not been compared function by function. Earlier updates cover what was ported, but a port is not proof that nothing else is missing, as the death bug showed.

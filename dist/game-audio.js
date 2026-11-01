@@ -20,6 +20,60 @@ export const menuMusicGain = (volume, balance = 0) => {
 const LEVEL_IDS = { disco:319, bedtime:320, factory:321, malaria:322, eightbit:323, '8bit':323, exitus:324 };
 
 /** Original game audio. No dependency on rendering or gameplay implementation. */
+const UNDEAD_VOICES = {spawn:0x26, taunt:0x27, afterDeath:0x28};
+// 0x4179c0: table 0x481d38 by weapon type; types above 1 use the level bank 3 (0x417950).
+const PICKUP_SOUNDS = {1:[4,15], 2:[3,0], 4:[3,2], 5:[3,5]};
+const SILENCE = 2/32768, MAX_TRIM = 4096;
+
+// The first and last sounding sample: the MP3 codec pads every track, which would be a gap per loop.
+export function loopPoints(channel) {
+  let start=0,end=channel.length;
+  while(start<MAX_TRIM&&start<channel.length&&Math.abs(channel[start])<SILENCE)start++;
+  while(channel.length-end<MAX_TRIM&&end>start+1&&Math.abs(channel[end-1])<SILENCE)end--;
+  return {start,end};
+}
+
+// Music track with the interface of an audio element. An element leaves a gap at every loop, a
+// looping buffer does not. The original streams MP3 to DirectSound.
+class LoopTrack {
+  constructor(context) { this.context=context; this.paused=true; this.loop=true; this.preload='auto'; this.listeners=new Map(); this.level=1; this.offset=0; this.buffer=null; this.source=null; this.node=null; this.token=0; }
+  addEventListener(type, listener) { this.listeners.set(type,listener); }
+  set src(url) { this.url=url; }
+  get src() { return this.url; }
+  set volume(value) { this.level=value; if(this.node)this.node.gain.value=value; }
+  get volume() { return this.level; }
+  get currentTime() {
+    if(!this.source)return this.offset;
+    const played=this.context().currentTime-this.startedAt+this.offset,{loopStart,loopEnd}=this.source;
+    return played<loopEnd?played:loopStart+(played-loopStart)%(loopEnd-loopStart);
+  }
+  set currentTime(value) { const playing=!!this.source; this.halt(); this.offset=value; if(playing)this.begin(); }
+  async load() {
+    if(this.buffer)return this.buffer;
+    this.loading??=fetch(this.url).then(r=>r.arrayBuffer()).then(data=>this.context().decodeAudioData(data));
+    this.buffer=await this.loading;
+    const {start,end}=loopPoints(this.buffer.getChannelData(0));
+    this.loopStart=start/this.buffer.sampleRate; this.loopEnd=end/this.buffer.sampleRate;
+    return this.buffer;
+  }
+  begin() {
+    const context=this.context(),source=context.createBufferSource();
+    this.node??=context.createGain(); this.node.gain.value=this.level; this.node.connect(context.destination);
+    source.buffer=this.buffer; source.loop=true; source.loopStart=this.loopStart; source.loopEnd=this.loopEnd;
+    source.connect(this.node);
+    this.offset=Math.max(this.offset,this.loopStart); this.startedAt=context.currentTime;
+    source.start(0,this.offset); this.source=source;
+  }
+  halt() { if(!this.source)return; this.offset=this.currentTime; this.source.onended=null; this.source.stop(); this.source.disconnect(); this.source=null; }
+  async play() {
+    if(!this.paused)return;
+    this.paused=false;const token=++this.token;
+    try { await this.load(); } catch(error) { this.paused=true; this.listeners.get('error')?.(error); throw error; }
+    if(token===this.token&&!this.paused&&!this.source)this.begin();
+  }
+  pause() { this.paused=true; this.token++; this.halt(); }
+}
+
 export class GameAudio extends EventTarget {
   constructor({catalogURL = new URL('./assets/original/audio/catalog.json', import.meta.url), storage, contextFactory, mediaFactory} = {}) {
     super();
@@ -29,7 +83,7 @@ export class GameAudio extends EventTarget {
     for (const key of ['music','effects','voices']) this.settings[key] = clamp(this.settings[key]);
     this.settings.balance = balanceValue(this.settings.balance);
     this.contextFactory = contextFactory ?? (() => new (globalThis.AudioContext || globalThis.webkitAudioContext)());
-    this.mediaFactory = mediaFactory ?? (() => new Audio());
+    this.mediaFactory = mediaFactory ?? (() => new LoopTrack(() => this.context));
     this.context = null;
     this.catalog = null;
     this.buffers = new Map();
@@ -199,7 +253,8 @@ export class GameAudio extends EventTarget {
 
   voice(kind, player, options={}) {
     const profile = Math.max(0,Math.min(3,Number(player?.voiceSet ?? player?.voiceProfile ?? player?.id ?? 0) | 0));
-    const sample = this.catalog?.voices[kind]?.[profile];
+    // CBulanek 0x416670/0x416690/0x4166b0: slots 0x20..0x23 (the undead) have their own three lines.
+    const sample = player?.undead ? UNDEAD_VOICES[kind] : this.catalog?.voices[kind]?.[profile];
     if (sample === undefined) return Promise.resolve(false);
     return this.playSample(4,sample,{category:'voices',x:player?.x ?? 400,voiceKey:`player-${player?.id ?? 0}`,...options});
   }
@@ -314,7 +369,11 @@ export class GameAudio extends EventTarget {
         }); break;
       }
       case 'spawn': case 'respawn': this.voice('spawn',player); break;
-      case 'pickup': this.effect('pickup',{x}); break;
+      case 'pickup': {
+        const sound=PICKUP_SOUNDS[event.item?.type];
+        if(sound)this.playSample(sound[0],sound[1],{x});
+        break;
+      }
       case 'reload': case 'reload-complete': this.effect('reload',{x}); break;
       case 'taunt': this.voice('taunt',player); break;
       case 'voice': this.voice(event.kind || 'taunt',player); break;

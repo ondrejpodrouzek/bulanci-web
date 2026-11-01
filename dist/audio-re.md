@@ -30,7 +30,9 @@ The global bank is resource **4**, not bank 0: initialisation `0x402b65` loads `
 | Shotgun | 4 / 13 | flag 0x20, `0x41f2fc` |
 | Reload finished | 4 / 16 | `0x4175b8` |
 | Round end | 4 / 17 | `0x41d64c` |
-| Pickup | 4 / 18 | `0x419d99` |
+| Last five seconds of the clock | 4 / 18 | `0x419d60` |
+| Pickup: shotgun, mine, SMG, rocket launcher | 4/15, 3/0, 3/2, 3/5 | `0x4179c0`, table `0x481d38`, none for pistol and detonator |
+| Undead lines: return, taunt, after death | 4/38, 4/39, 4/40 | `0x416670`, `0x4166b0`, `0x416690` |
 | Hit / death | 4 / 23 | `0x41f9a5` |
 | Death, shooter holds the shotgun | 4 / 22 | `0x41f9b3`, `0x417f80` |
 | Teleport | 4 / 36 | `0x41db6c` |

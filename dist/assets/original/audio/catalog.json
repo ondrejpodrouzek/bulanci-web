@@ -151,10 +151,6 @@
       "bank": 4,
       "sample": 17
     },
-    "pickup": {
-      "bank": 4,
-      "sample": 18
-    },
     "death": {
       "bank": 4,
       "sample": 23

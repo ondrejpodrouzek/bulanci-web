@@ -85,15 +85,17 @@ export class Game{
  equipWeapon(p,type){if(p.weapon!==type)this.cancelWeaponAction(p);p.weapon=type;p.lastShotWeapon=-1;}
  switchWeapon(id){const p=this.players[id];if(!p||p.dead)return;for(let i=1;i<=WEAPONS.length;i++){const next=(p.weapon+i)%WEAPONS.length;if(next===0||p.ammo[next]>0){this.equipWeapon(p,next);return;}}}
  face(p,direction){if(p.direction!==direction&&p.action)this.cancelWeaponAction(p);p.direction=direction;}
+ // 0x417910, 0x420975: stopping shows frame 0 and puts the swaying axis back on the walking line.
+ stopWalk(p){const m=p.motion;if(m&&m.line!==undefined){if(m.vertical)p.x=m.line;else p.y=m.line;}p.motion=null;p.bodyFrame=0;}
  move(p,input,dt){
   p.moving=input?.direction!==undefined;p.motionBlocked=false;
-  if(!p.moving){p.motion=null;return;}
+  if(!p.moving){this.stopWalk(p);return;}
   // +0x16a: while a teleport effect plays the actor cannot turn (0x4197b0).
-  if(input.direction!==p.direction&&teleporting(this,p)){p.moving=false;p.motion=null;return;}
+  if(input.direction!==p.direction&&teleporting(this,p)){p.moving=false;this.stopWalk(p);return;}
   this.face(p,input.direction);
   const resource=bodyResource(p),motion=MOVEMENT_DATA.resources[resource];
   const speed=p.speedPercent??100;
-  if(!p.motion||p.motion.resource!==resource){p.motion={resource,frame:0,ms:0};p.bodyFrame=0;}
+  if(p.motion&&p.motion.resource!==resource)this.stopWalk(p);if(!p.motion){p.motion={resource,frame:0,ms:0,vertical:p.direction>=2,line:p.direction>=2?p.x:p.y};p.bodyFrame=0;}
   const state=p.motion;state.ms+=dt*1000;p.walk+=dt*speed/100;
   let delay=speed===100?motion.frame_delays_ms[state.frame]:Math.trunc(47.25/(speed/100));
   while(state.ms+1e-7>=delay){
@@ -180,7 +182,7 @@ export class Game{
    else if(first.kind==='creature')hitCreature(this,first.target,b);
    else if(first.target.hitCallback!=null&&this.eight)eightBitShotHit(this,first.target.hitCallback);
  }
- update(dt,inputs=[]){if(this.over)return;dt=clamp(dt,0,.05);this.time=Math.max(0,this.time-dt);this.elapsed+=dt;if(!this.time){this.finish();return;}
+ update(dt,inputs=[]){if(this.over)return;dt=clamp(dt,0,.05);{const before=Math.ceil(this.time);this.time=Math.max(0,this.time-dt);const left=Math.ceil(this.time);if(left!==before&&left>=1&&left<=5&&this.rules.type==='time')this.onEvent({type:'sound',bank:4,sample:18,x:400});} /* the last five seconds tick (0x419d60) */this.elapsed+=dt;if(!this.time){this.finish();return;}
   for(const p of this.players){p.cooldown=Math.max(0,p.cooldown-dt);if(p.action&&p.cooldown<=1e-9)this.finishWeaponAction(p);if(p.dead>0){p.deathElapsed+=dt;p.dead-=dt;if(p.dead<=0){if(eliminated(this.rules,p)){p.dead=Infinity;p.active=false;}else this.spawn(p,true);}continue;}if(p.reloading>0){p.reloading-=dt;if(p.reloading<=0){p.reloading=0;p.ammo[0]=WEAPONS[0].ammo;}}if(!p.bot){const input=inputs[p.id]||{};this.move(p,input,dt);
    // 0x4121a0 compares this and the previous DirectInput key state: fire (command 4) is sent only
    // on the press edge, and 0x4208c0 fires only if the weapon is idle at that moment. Holding the
