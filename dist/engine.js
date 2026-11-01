@@ -16,6 +16,7 @@ import {createPickups,updatePickups,humanDied,weaponEnded} from './pickups.js';
 import {defaultHumans,colorCss} from './players.js';
 import {createSceneAnims,updateSceneAnims} from './scene-anims.js';
 import {placeMine,detonateOwned,startExplosion,updateMines} from './mines.js';
+export const RELOAD_TICKS=16;
 export const W=800,H=515,RADIUS=9;
 export const SHOT_SPEED=800;            // confirmed: 40 px / 50 ms
 export const BODY_W=55,BODY_H=62;
@@ -61,7 +62,8 @@ export class Game{
   // Exitus allocates four undead slots; the native initializer enables the first one.
   this.npcs=[];const npcN=(mapData&&mapData.npcs)||0;for(let i=0;i<npcN;i++){const n={id:isExitus(mapData)?32+i:200+i,npc:true,undead:isExitus(mapData),active:!isExitus(mapData)||i===0,spawned:false,speedPercent:isExitus(mapData)?40:100,colorIndex:1+i%3,x:0,y:0,direction:Math.floor(random()*4),dead:0,score:0,deaths:0,weapon:0,ammo:[5,0,0,0,0,0],cooldown:0,reloading:0,moving:false,walk:0,think:random()*0.3,deathElapsed:0,lastShotWeapon:0};this.npcs.push(n);this.spawnNpc(n);}
   this.pickups=createPickups(this);}
- reloadTime(){return this.mode==='local'?0.5:0.15;} // pistol auto-reload: 500 ms 2P / 150 ms solo (0x41e9f0)
+ // Pistol timer 0 ticks every 150 ms alone, 500 ms otherwise (0x41e9f0); the 16th tick reloads (0x420b4b).
+ reloadTime(){return RELOAD_TICKS*(this.humans.length===1?.15:.5);}
  actors(){return this.players.concat(this.npcs);}
  actorBlocked(self,x,y){return !canPlaceActor(x,y,this.map.obstacles,this.actors().filter(a=>a.active!==false),self);}
  spawnPoint(actor){

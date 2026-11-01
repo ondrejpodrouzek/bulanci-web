@@ -26,7 +26,7 @@ Type 3 is specifically the remote detonator: `0x41ed60` iterates game objects of
 
 ## Reload
 
-The pistol automatically reloads when its fifth round is consumed. Body constructor `0x41e9f0..0x41ea18` configures timer 0 to **150 ms if config+0xd8 == 1, otherwise 500 ms**. This field is the player count (creation loop `0x41c199..0x41c1be`). `0x417500` starts the timer on reaching zero; `0x417570` stops it, refills all five rounds via `0x412490(0)` and plays sample 16. These times run from ammo depletion, independently of the pistol's 210 ms firing animation.
+The pistol automatically reloads when its fifth round is consumed. Body constructor `0x41e9f0..0x41ea18` configures timer 0 to tick every **150 ms if config+0xd8 == 1, otherwise 500 ms**, and the 16th tick reloads (`0x420b4b`), so a reload takes **2.4 s or 8 s**. This field is the player count (creation loop `0x41c199..0x41c1be`). `0x417500` starts the timer on reaching zero; `0x417570` stops it, refills all five rounds via `0x412490(0)` and plays sample 16. These times run from ammo depletion, independently of the pistol's 210 ms firing animation.
 
 ## Sound banks
 

@@ -60,7 +60,7 @@ export function createHud({image,drawText}) {
     const strip=put(ctx,STRIP,x,y),w=p.weapon;
     if(w===0&&p.ammo[0]<=0) { // 0x427ce2: an empty pistol shows the reload bar
       const bar=image(`assets/original/ui/${RELOAD_BAR}.png`);
-      if(bar.complete&&bar.naturalWidth){const done=Math.max(0,1-(p.reloading??0)/reloadTime),width=Math.floor(Math.round(done*15)*bar.naturalWidth/15);if(width>0)ctx.drawImage(bar,0,0,width,bar.naturalHeight,x+1,y+1,width,bar.naturalHeight);}
+      if(bar.complete&&bar.naturalWidth){const ticks=Math.floor(Math.max(0,1-(p.reloading??0)/reloadTime)*16),width=Math.floor(ticks*bar.naturalWidth/15);if(width>0)ctx.drawImage(bar,0,0,width,bar.naturalHeight,x+1,y+1,width,bar.naturalHeight);}
       return;
     }
     if(!WEAPON_PIP[w]){if(p.ammo[w]>0)put(ctx,NO_PIPS,x,y);return;}

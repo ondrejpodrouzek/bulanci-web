@@ -311,6 +311,7 @@ Logic audit by area:
   - Walking: stopping shows frame 0 and puts the swaying axis back on the walking line (`0x417910`, `0x420975`).
   - Pickup sound: sample 18 is the tick of the last five seconds (`0x419d60`). Pickups use table `0x481d38`.
   - Undead have their own three voice lines (`0x416670`, `0x416690`, `0x4166b0`).
-- Not audited: weapon timing, bots, undead behaviour, creatures, game rules, network messages.
+- Weapons: pistol reload fixed. Timer 0 ticks every 150 ms alone and 500 ms otherwise (`0x41e9f0`), and only the 16th tick reloads (`0x420b4b`), so it takes 2.4 s or 8 s, not 0.15 s or 0.5 s. Weapon switching matches `0x41eca0`. Fire conditions in `0x420650` are not audited yet.
+- Not audited: fire conditions, bots, undead behaviour, creatures, game rules, network messages.
 
 The game logic has not been compared function by function. Earlier updates cover what was ported, but a port is not proof that nothing else is missing, as the death bug showed.
