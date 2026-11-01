@@ -8,7 +8,7 @@ export const RULE_RANGES={hits:[5,999],time:[10,9999],lives:[5,999]};
 // One human player (config+0xd8 == 1) forces "na čas" for 150 s (0x4136df).
 export const TRAINING_RULES={type:'time',limit:150};
 
-const human=p=>!p.bot&&!p.npc;
+const human=p=>!p.bot&&!p.npc&&p.active!==false; // active false: left a network game
 export function resolveRules({mode,gameType='time',limit}={}) {
   if(mode==='training')return {...TRAINING_RULES};
   const type=GAME_TYPES.includes(gameType)?gameType:'time',[lo,hi]=RULE_RANGES[type];

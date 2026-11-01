@@ -14,19 +14,31 @@ function client(port) {
   };
 }
 
-test('sessions: host, list, join, relay, start hides, host leaving closes (net-server.mjs)',async()=>{
+test('sessions: host, list, join by code, relay, a running game stays joinable, host leaving closes (net-server.mjs)',async()=>{
   const server=http.createServer();attachNetServer(server);
   await new Promise(r=>server.listen(0,'127.0.0.1',r));const port=server.address().port;
   const host=client(port),guest=client(port);await Promise.all([host.open,guest.open]);
   host.send({t:'host',name:'Bulík',total:2});const hosted=await host.next('hosted');assert.equal(hosted.peer,0);
-  guest.send({t:'list'});const {list}=await guest.next('sessions');assert.deepEqual(list,[{id:hosted.id,name:'Bulík',players:1,total:2}]);
-  guest.send({t:'join',id:hosted.id});assert.equal((await guest.next('joined')).peer,1);assert.equal((await host.next('peer-join')).peer,1);
+  guest.send({t:'list'});const {list}=await guest.next('sessions');assert.match(hosted.id,/^[A-HJKMNP-Z2-9]{4}$/,'a code people can read out');assert.deepEqual(list,[{id:hosted.id,name:'Bulík',players:1,total:2,level:'',rule:'',playing:false}]);
+  guest.send({t:'join',id:` ${hosted.id.toLowerCase()} `});assert.equal((await guest.next('joined')).peer,1);assert.equal((await host.next('peer-join')).peer,1);
   guest.send({t:'send',data:{chat:'ahoj'}});assert.deepEqual(await host.next('msg'),{t:'msg',from:1,data:{chat:'ahoj'}});
   const big='x'.repeat(70000);host.send({t:'send',to:1,data:big});assert.equal((await guest.next('msg')).data.length,70000,'64-bit length frames');
   const third=client(port);await third.open;third.send({t:'join',id:hosted.id});assert.equal((await third.next('error')).text,'Hra je plná.');
-  host.send({t:'start'});third.send({t:'list'});assert.deepEqual((await third.next('sessions')).list,[]);
+  host.send({t:'info',level:'Malárie',rule:'Hra končí po 180 vteřinách.',seats:2});host.send({t:'start'});third.send({t:'list'});assert.deepEqual((await third.next('sessions')).list,[{id:hosted.id,name:'Bulík',players:2,total:2,level:'Malárie',rule:'Hra končí po 180 vteřinách.',playing:true}]);
+  host.send({t:'reopen'});third.send({t:'list'});assert.equal((await third.next('sessions')).list[0].playing,false);
   host.close();await guest.next('closed');
   third.close();guest.close();server.close();
+});
+
+test('seats count the players of each computer, the host can remove a guest',async()=>{
+  const server=http.createServer();attachNetServer(server);
+  await new Promise(r=>server.listen(0,'127.0.0.1',r));const port=server.address().port;
+  const host=client(port),guest=client(port),late=client(port);await Promise.all([host.open,guest.open,late.open]);
+  host.send({t:'host',name:'A',total:4});const {id}=await host.next('hosted');
+  guest.send({t:'join',id});await guest.next('joined');await host.next('peer-join');
+  guest.send({t:'kick',peer:0});host.send({t:'kick',peer:1});await guest.next('kicked');assert.equal((await host.next('peer-leave')).peer,1);
+  host.send({t:'info',seats:4});late.send({t:'join',id});assert.equal((await late.next('error')).text,'Hra je plná.');
+  host.close();guest.close();late.close();server.close();
 });
 
 import netsock from 'node:net';
@@ -40,7 +52,7 @@ test('bad clients cannot take the server down',async()=>{
   // Unmasked frame, reserved bits, oversized ping, a claimed 8 EiB length.
   for(const bytes of [[0x81,1,65],[0xf1,0x80,0,0,0,0],[0x89,0xfe,1,0,0,0,0,0],[0x81,0xff,127,255,255,255,255,255,255,255,0,0,0,0]])await raw(port,Buffer.concat([Buffer.from(upgrade('/net')),Buffer.from(bytes)]));
   const bad=client(port);await bad.open;
-  for(const m of [null,1,[],{t:'host',name:{toString:1},total:{valueOf:1}},{t:'join',id:{}},{t:'send',to:{},data:1},{t:'nic'}])bad.send(m);
+  for(const m of [null,1,[],{t:'host',name:{toString:1},total:{valueOf:1}},{t:'join',id:{}},{t:'kick',peer:{}},{t:'info',level:{},seats:1e9},{t:'send',to:{},data:1},{t:'nic'}])bad.send(m);
   bad.send({t:'list'});assert.equal(Array.isArray((await bad.next('sessions')).list),true,'still answers');
   bad.close();server.close();
 });

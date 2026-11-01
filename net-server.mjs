@@ -4,19 +4,26 @@
 // (the original's authority checks, native 0x4a) and the other browsers send input to it.
 //
 // Client -> server:  {t:'list'} | {t:'host',name,total} | {t:'join',id} | {t:'leave'}
-//                    {t:'start'} (host: hides the session from the list)
-//                    {t:'send',to?,data,drop?} (drop: may be skipped for a slow receiver)
+//                    {t:'info',level,rule,seats} (host: what the list shows about the game)
+//                    {t:'start'} / {t:'reopen'} (host: a round begins / ended)
+//                    {t:'kick',peer} (host) | {t:'send',to?,data,drop?} (drop: may be skipped
+//                    for a slow receiver)
 // Server -> client:  {t:'sessions',list} | {t:'hosted',id,peer:0} | {t:'joined',id,peer}
 //                    {t:'peer-join',peer} | {t:'peer-leave',peer} | {t:'msg',from,data}
-//                    {t:'closed'} (the host left or the session expired) | {t:'error',text}
+//                    {t:'closed'} (the host left or the session expired) | {t:'kicked'}
+//                    {t:'error',text}
+//
+// A session id is the short code people read to each other; a game takes guests during a round
+// too, they wait in the lobby for the next one.
 //
 // Nothing a client sends may take the server down or keep resources: connections answer pings
 // or are dropped, floods and oversized frames disconnect, abandoned sessions expire.
-import {createHash} from 'node:crypto';
+import {createHash,randomInt} from 'node:crypto';
 
 const GUID='258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 const MAX_MESSAGE=1<<20,MAX_SESSIONS=64,MAX_PEERS=4,MAX_CONNECTIONS=512;
 const RATE_WINDOW=1000,RATE_LIMIT=300,SOFT_BACKLOG=1<<18,HARD_BACKLOG=1<<22;
+const CODE_LETTERS='ABCDEFGHJKMNPQRSTUVWXYZ23456789',CODE_LENGTH=4;
 const LIMITS={heartbeat:15000,lobbyIdle:30*60000,gameIdle:60000,loneConnection:10*60000,sweep:5000};
 
 function frame(op,data) {
@@ -67,8 +74,10 @@ function connection(socket,onText,onClose) {
 }
 
 export function attachNetServer(server,options={}) {
-  const limits={...LIMITS,...options},sessions=new Map(),connections=new Set();let nextId=1;
-  const listing=()=>[...sessions.values()].filter(s=>!s.started).map(s=>({id:s.id,name:s.name,players:s.peers.size,total:s.total}));
+  const limits={...LIMITS,...options},sessions=new Map(),connections=new Set();
+  const newCode=()=>{for(;;){let code='';for(let i=0;i<CODE_LENGTH;i++)code+=CODE_LETTERS[randomInt(CODE_LETTERS.length)];if(!sessions.has(code))return code;}};
+  const seats=s=>Math.max(s.seats,s.peers.size);
+  const listing=()=>[...sessions.values()].map(s=>({id:s.id,name:s.name,players:seats(s),total:s.total,level:s.level,rule:s.rule,playing:s.started}));
   function dissolve(s) {
     sessions.delete(s.id);
     for(const p of s.peers.values()){p.session=null;p.touched=Date.now();p.conn.send({t:'closed'});}
@@ -86,19 +95,30 @@ export function attachNetServer(server,options={}) {
       case 'host': {
         leave(c);if(sessions.size>=MAX_SESSIONS){c.conn.send({t:'error',text:'Příliš mnoho her.'});break;}
         const name=typeof msg.name==='string'&&msg.name.trim()?msg.name.replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,40)||'Hra':'Hra',total=Number.isInteger(msg.total)?msg.total:2;
-        const s={id:nextId++,name,total:Math.max(2,Math.min(MAX_PEERS,total)),peers:new Map(),started:false,next:1,touched:Date.now()};
+        const s={id:newCode(),name,total:Math.max(2,Math.min(MAX_PEERS,total)),peers:new Map(),started:false,next:1,touched:Date.now(),level:'',rule:'',seats:1};
         sessions.set(s.id,s);c.session=s;c.peer=0;s.peers.set(0,c);c.conn.send({t:'hosted',id:s.id,peer:0});break;
       }
       case 'join': {
-        const s=sessions.get(msg.id);
-        if(!s||s.started){c.conn.send({t:'error',text:'Hra už neexistuje.'});break;}
-        if(s.peers.size>=s.total){c.conn.send({t:'error',text:'Hra je plná.'});break;}
+        const s=sessions.get(String(msg.id).trim().toUpperCase());
+        if(!s){c.conn.send({t:'error',text:'Hra s tímto kódem neexistuje. Zkontrolujte kód u hostitele.'});break;}
+        if(seats(s)>=s.total){c.conn.send({t:'error',text:'Hra je plná.'});break;}
         leave(c);c.session=s;c.peer=s.next++;s.touched=Date.now();
         for(const p of s.peers.values())p.conn.send({t:'peer-join',peer:c.peer});
         s.peers.set(c.peer,c);c.conn.send({t:'joined',id:s.id,peer:c.peer});break;
       }
       case 'leave':leave(c);break;
-      case 'start':if(c.session&&c.peer===0){c.session.started=true;c.session.touched=Date.now();}break;
+      case 'start':case 'reopen':if(c.session&&c.peer===0){c.session.started=msg.t==='start';c.session.touched=Date.now();}break;
+      case 'info': {
+        const s=c.session;if(!s||c.peer!==0)break;
+        if(typeof msg.level==='string')s.level=msg.level.slice(0,40);if(typeof msg.rule==='string')s.rule=msg.rule.slice(0,80);
+        if(Number.isInteger(msg.seats))s.seats=Math.max(1,Math.min(s.total,msg.seats));
+        break;
+      }
+      case 'kick': {
+        const s=c.session;if(!s||c.peer!==0||msg.peer===0)break;
+        const p=s.peers.get(msg.peer);if(p){p.conn.send({t:'kicked'});leave(p);}
+        break;
+      }
       case 'send': {
         const s=c.session;if(!s)break;
         if(c.peer===0||!s.started)s.touched=Date.now(); // a running game lives from the host's snapshots

@@ -78,7 +78,7 @@ Android project: https://github.com/JustNaxi/Bulanci . Neither its Java code nor
 
 Items finished from the earlier list (character speed and steps, collision rectangle, death length, SMG, weapon pickups, training, rocket launcher, mines, power-ups, pipes, teleports, creatures, Na dobrou noc layout, the 8-bit map) are described in the updates below. Remaining:
 
-- Network game: first version finished (see below); pause, in-game chat and a player disconnecting mid-game are simplified.
+- Network game: own web screens (see below); in-game chat is missing, the original network dialogs are not used.
 
 ## Checks
 
@@ -244,6 +244,10 @@ The crane's movement comes from chunks 10 (object offset per displayed frame, ob
 **Configuration flag `+0x86`.** Default 1 (`0x413542`). `0x412780` walks the table of game participants (`+0x168`, 13 B per record, count `+0xda`; the local record is written by `0x412720` from `+0x31/+0x35/+0x36/+0x37`) and clears the flag if any participant has byte `+4` below 11. At zero `0x420121` keeps game state 2 (shotgun only) even in all-weapons mode (`+0x19d`, a copy of saved `+0x88`) and `0x412d6a` sends no network message. It is thus a compatibility gate for network participants (inference: value +4 is presumably the program version); in a local game it is always 1 and the web behaves that way.
 
 **Sensor order.** `0x41b5a0` (called for a moved character) walks the sensor and region array `+0x2d8` (count `+0x2e0`) from last created to first and passes each a message through `0x419e90` (character id, rectangle, invisibility `+0x198`). On simultaneous entry into several sensors the last created reacts first (the opponent with the higher id, the region with the higher index). In the web the order would only show in the sequence of RNG calls; the web does not emulate the MSVC `rand()` sequence, so the difference is not observable and the logic was not changed.
+
+## Update 1 Nov 2026: network screens rebuilt
+
+Network play no longer follows the original dialogs: a deliberate departure, since the protocol was never meant to be 1:1. Start hry 1 asks "Na tomto počítači / Po síti"; `dist/net-ui.js` is one phone-first page for the game list and the room. Games have a four-character code and an invitation link (`?hra=CODE`), 2 to 4 players, names and colours sorted out by the host (`settle` in `net.js`), late joiners wait for the next round, the room survives the results, the host can remove a guest. Esc in a network game does not pause: `pauseDialog` says "Hra běží dál". The section below describes the first version.
 
 ## Update 29 Oct 2026: network game over WebSockets
 

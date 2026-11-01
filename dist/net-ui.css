@@ -1,0 +1,78 @@
+/* Network play. The colours and the 3-pixel frame of the seats come from the original widgets
+   (#b7b7b7 / #575757); the sprites stand in the original preview frame. Phone first: one column
+   in portrait, the wider layouts only rearrange it. */
+.net-screen{--ink:#e2e2e2;--dim:#a3a3a3;--line:#b7b7b780;--panel:#000000b8;--gold:#ffd976;position:absolute;inset:0;z-index:66;display:flex;flex-direction:column;color:var(--ink);font:15px/1.35 Tahoma,Verdana,-apple-system,system-ui,sans-serif;background:linear-gradient(#000000d9,#000000f0),#000 url(assets/menu.jpg) center/cover no-repeat;touch-action:manipulation;-webkit-tap-highlight-color:transparent;outline:0;overflow:hidden}
+.net-screen[hidden]{display:none}
+html.touch-device .net-screen{position:fixed;bottom:auto;height:100dvh;z-index:75;padding:env(safe-area-inset-top) max(0px,env(safe-area-inset-right)) env(safe-area-inset-bottom) max(0px,env(safe-area-inset-left))}
+.net-screen h1{margin:0;font-size:20px;font-weight:700;letter-spacing:1px}
+.net-screen h2{margin:0;font-size:13px;font-weight:700;color:var(--dim);letter-spacing:.5px}
+.net-screen button,.net-screen input,.net-screen select{font:inherit;color:inherit}
+.net-screen button{cursor:pointer}.net-screen button:disabled{cursor:default}
+.net-screen :focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+.net-top{flex:none;display:flex;align-items:center;gap:12px;padding:10px 14px}
+.net-back{flex:none;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.net-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:4px 14px 14px;display:flex;flex-direction:column;gap:12px}
+.net-primary,.net-secondary{min-height:48px;padding:0 16px;border-radius:8px;font-weight:700}
+.net-screen .net-primary{border:0;background:var(--gold);color:#201400;font-size:18px}.net-primary:disabled{background:#4c4c4c;color:#aaa}
+.net-secondary{min-height:44px;border:1px solid var(--line);background:#2a2a2a;white-space:nowrap}.net-secondary:disabled{opacity:.45}
+.net-link{min-height:32px;padding:0 4px;border:0;background:none;color:var(--dim);font-size:12px;text-decoration:underline}
+.net-notice{margin:0;padding:10px 12px;border-left:3px solid var(--gold);background:var(--panel)}.net-notice[hidden]{display:none}
+.net-empty{margin:0;color:var(--dim)}.net-swatches{display:grid;grid-template-columns:repeat(4,30px);gap:7px;justify-content:center}
+.net-swatch{width:30px;height:30px;padding:0;border:0;border-radius:4px}.net-swatch:disabled{opacity:.18}.net-swatch[aria-pressed="true"]{outline:2px solid #eee;outline-offset:1px}
+.net-name,.net-code-input,.net-say input,.net-field input,.net-field select{width:100%;height:44px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:#000;font-size:16px;user-select:text;-webkit-user-select:text}
+.net-portrait{position:relative;flex:none;width:90px;height:90px;border:3px double #b7b7b7;background:#0006;overflow:hidden}
+.net-bulanek{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:block;background-repeat:no-repeat;animation:net-idle 1s infinite}
+@keyframes net-idle{to{background-position-x:var(--sheet)}}
+@media (prefers-reduced-motion:reduce){.net-bulanek{animation:none}}
+
+/* List of games */
+.net-me{display:flex;align-items:center;gap:12px}.net-me-fields{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}.net-me-fields .net-swatches{justify-content:start;grid-template-columns:repeat(8,minmax(0,30px));gap:5px}
+.net-actions{display:flex;flex-direction:column;gap:8px}.net-code{display:flex;gap:8px}
+.net-code-input{flex:1;min-width:0;text-align:center;font-size:20px;font-weight:700;letter-spacing:5px}.net-code-input::placeholder{font-size:15px;font-weight:400;letter-spacing:0}
+.net-games{display:flex;flex-direction:column;gap:6px}.net-game{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.net-game>div{flex:1;min-width:0}.net-game b,.net-game small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.net-game small{color:var(--dim)}.net-count{font-variant-numeric:tabular-nums}.net-full{color:var(--dim)}
+
+/* Room */
+.net-room-top{justify-content:space-between}
+.net-room-code{display:flex;flex-direction:column;align-items:center;line-height:1}.net-room-code span{font-size:11px;color:var(--dim)}
+.net-room-code strong{margin-top:3px;font-size:30px;letter-spacing:6px;margin-right:-6px;color:var(--gold);user-select:text;-webkit-user-select:text}
+.net-seats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.net-seat{min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px;border:1px solid transparent;border-radius:8px;text-align:center}
+.net-seat.own{border-color:var(--line);background:var(--panel)}.net-seat.free .net-portrait{opacity:.35}
+.net-seat-name{max-width:100%;min-height:24px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}.net-seat.free .net-seat-name{font-weight:400;color:var(--dim)}
+.net-seat .net-name{height:38px;text-align:center}.net-keys{color:var(--dim);font-size:11px}
+.net-setup,.net-chat{display:flex;flex-direction:column;gap:7px;min-width:0}
+.net-levels{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.net-levels.guest{grid-template-columns:minmax(0,220px)}
+.net-level{position:relative;display:block;aspect-ratio:4/3;padding:0;overflow:hidden;border:2px solid #fff3;border-radius:6px;background:#222}
+.net-level img{display:block;width:100%;height:100%;object-fit:cover;opacity:.6}.net-level span{position:absolute;left:0;right:0;bottom:0;padding:12px 5px 4px;font-size:12px;font-weight:700;text-align:left;background:linear-gradient(#0000,#000d)}
+.net-level[aria-pressed="true"]{border-color:var(--gold)}.net-level[aria-pressed="true"] img,.net-level:disabled img{opacity:1}
+.net-rules{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.net-field{display:flex;flex-direction:column;gap:3px;min-width:0;font-size:12px;color:var(--dim)}.net-field input,.net-field select{color:var(--ink);padding:0 5px}.net-summary{grid-column:1/-1;margin:0}
+.net-lines{min-height:88px;max-height:150px;flex:1;overflow-y:auto;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--panel);user-select:text;-webkit-user-select:text}.net-lines p{margin:0;overflow-wrap:anywhere}
+.net-say input{height:44px}
+.net-foot{flex:none;display:flex;align-items:center;gap:12px;padding:8px 14px 10px;background:#000c;border-top:1px solid #b7b7b740}
+.net-status{flex:1;min-width:0;margin:0;font-size:13px;color:var(--dim)}.net-foot .net-primary{flex:none}.net-foot .net-primary[hidden]{display:none}
+
+/* Phone on its side: the seats keep the left half, everything else scrolls on the right. */
+@media (orientation:landscape) and (max-height:520px){
+ .net-top{padding:5px 12px}.net-top h1{font-size:17px}
+ .net-room-code{flex-direction:row;align-items:baseline;gap:8px}.net-room-code strong{font-size:24px;margin-top:0}
+ .net-hub{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-content:start;column-gap:16px}.net-hub .net-me,.net-hub .net-actions,.net-hub .net-notice{grid-column:1}.net-hub h2{grid-column:2;grid-row:1}.net-hub .net-games{grid-column:2;grid-row:2/span 4}
+ .net-room{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-content:start;column-gap:12px}.net-room .net-seats,.net-room .net-notice{grid-column:1}.net-room .net-setup{grid-column:2;grid-row:1/span 2}.net-room .net-chat{grid-column:1}
+ .net-portrait{width:72px;height:72px}.net-seat{padding:6px 4px}.net-swatches{grid-template-columns:repeat(4,26px);gap:6px}.net-swatch{width:26px;height:26px}
+ .net-levels{grid-template-columns:repeat(3,1fr)}.net-foot{padding:5px 12px 6px}.net-foot .net-primary{min-height:42px}
+}
+/* Computer: the frame has room for all four seats in a row, setup and chat side by side. */
+html:not(.touch-device) .net-top h1{font-size:22px}
+html:not(.touch-device) .net-scroll{padding:6px 18px 12px}
+html:not(.touch-device) .net-seats{grid-template-columns:repeat(4,minmax(0,1fr))}
+html:not(.touch-device) .net-room{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);align-content:start;gap:10px 16px}
+html:not(.touch-device) .net-room .net-seats,html:not(.touch-device) .net-room .net-notice{grid-column:1/-1}
+html:not(.touch-device) .net-lines{max-height:none;height:128px;flex:none}
+html:not(.touch-device) .net-hub{max-width:620px;width:100%;align-self:center}
+@media (min-width:600px){html.touch-device .net-seats{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.net-field{align-items:stretch;text-align:left}.net-field input,.net-field select{min-width:0;margin:0;box-sizing:border-box}
+.net-seat .net-swatches{width:100%;max-width:141px;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}.net-seat .net-swatch{width:auto;height:auto;aspect-ratio:1}
+html:not(.touch-device) .net-level{aspect-ratio:16/9}html:not(.touch-device) .net-room{gap:8px 16px}html:not(.touch-device) .net-seat{padding:6px;gap:4px}html:not(.touch-device) .net-seat .net-portrait{width:78px;height:78px}html:not(.touch-device) .net-seat .net-swatches{max-width:110px}html:not(.touch-device) .net-seat .net-name{height:32px;font-size:14px}
+.net-me-fields .net-swatches{grid-template-columns:repeat(8,minmax(0,1fr));max-width:254px}.net-me-fields .net-swatch{width:auto;height:auto;aspect-ratio:1}
+/* A low laptop screen: the whole room, with its start button, stays on the screen. */
+html:not(.touch-device) #game-frame:has(#net-screen:not([hidden])){max-width:calc((100dvh - 60px)*4/3);margin-inline:auto}

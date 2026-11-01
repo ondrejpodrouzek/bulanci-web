@@ -33,7 +33,7 @@ relative to the window.
 | Statistics | `0x410e20` → `CLevelScore` | full-screen window 0x320×0x258; bitmaps 34–36, 164, 149; animation 303; texts "Zabil: %dx", "Mrtev: %dx"; table Pořadí/Level/Jméno/Zabil/Mrtev/Rozdíl |
 | Konec | `0x411b50`, `CExitDlg` | animations 305, 306; "Konec hry" |
 | Message | `0x40be80`, `CMsgDialog` | text and button, done (step 3d-8) |
-| Network | `0x40c060` (IP address), `0x40c2d0` (game list), `0x4102d0` (chat) | a look reference for the WebSocket multiplayer only |
+| Network | `0x40c060` (IP address), `0x40c2d0` (game list), `0x4102d0` (chat) | not used by the web, which has its own network screens (`dist/net-ui.js`) |
 | Help, Historie | `CHelpDlg` ctor `0x421e40`, `CHistoryDlg` `0x4231d0` | Historie done from the original (see below); help is unreachable, see step 3d-8 |
 | Main menu scene | `0x4265e0` (`CMenu` constructor) | background 315, night bitmap 313, `CPoemScroller`, "Verze: 1.80" (font 176), 4× `CRuch`, done, see below |
 

@@ -27,12 +27,15 @@ once, unless you clear your browser data. The game's interface is in Czech, like
 
 ## Network play
 
-The host creates a game and the others join from the list under Hra po síti. Every player needs
-their own imported `bulanci.exe`. The **host's browser** runs the game. The others send their
-keys and receive the game state 30 times a second. The server (`net-server.mjs`, a WebSocket on
-`/net`) only keeps the list of games and relays messages. One game takes up to 4 browsers.
+The host creates a game under Hra po síti and sends the link or reads out the four-character code.
+Others join through the link, the code or the list, also while a round runs: they wait in the room
+for the next one. The host starts with 2 to 4 players, and after the results everybody stays in the
+room. Every player needs their own imported `bulanci.exe`. The **host's browser** runs the game. The
+others send their keys and receive the game state 30 times a second. The server (`net-server.mjs`, a
+WebSocket on `/net`) only keeps the list of games and relays messages.
 
-- If the host leaves or their tab sleeps, the game ends (the others notice within 8 s).
+- If the host leaves or their tab sleeps, the game ends (the others notice within 8 s). A guest who
+  leaves disappears from the field and the round goes on while two players remain.
 - The host has no delay, the others have their round trip to the server; the state is not
   interpolated.
 - After a round everyone returns to the menu.

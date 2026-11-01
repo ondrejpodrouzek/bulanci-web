@@ -9,15 +9,17 @@
 // matters in network games, where the dialog is also taller by 200 px for the chat (0x4102d0).
 import {StaticText,Button,Window} from './widgets.js';
 
-export function pauseDialog({onSetup=()=>{},paused=true}={}) {
+// A web network game does not stop for one player: network 'host' / 'guest' says so in the title
+// and the last button ends the round for everybody or leaves the game.
+export function pauseDialog({onSetup=()=>{},paused=true,network=null}={}) {
   const y=90-40;
   const pause=new Button({x:15,y,text:'Pozastav',visible:!paused,onClick:()=>win.onPause?.()});
   const resume=new Button({x:15,y,text:'Pokračuj',visible:paused,onClick:()=>win.onOk()});
   const win=new Window({w:306,h:90,widgets:[
-    new StaticText({x:0,y:12,w:306,h:23,text:'Hra je pozastavena',font:174,spacing:2,flags:5}),
+    new StaticText({x:0,y:12,w:306,h:23,text:network?'Hra běží dál':'Hra je pozastavena',font:174,spacing:2,flags:5}),
     pause,resume,
     new Button({x:112,y,text:'Nastavení',onClick:()=>onSetup()}),
-    new Button({x:209,y,text:'Konec hry',onClick:()=>{win.result='end';win.onOk();}}),
+    new Button({x:209,y,text:network==='guest'?'Odejít':'Konec hry',onClick:()=>{win.result='end';win.onOk();}}),
   ]});
   win.setFocus(paused?resume:pause);
   win.onOk=()=>win.result??'resume';

@@ -5,15 +5,15 @@ import {sceneAnimFrame,sceneAnimOffset} from './scene-anims.js';
 import {WEAPON_DATA,SHOT_DATA} from './original-data.js';
 import {createTouchControls} from './touch-controls.js';
 import {createDisplay} from './display.js';
-import {KEYSETS,defaultHumans} from './players.js';
-import {RULE_DEFAULTS} from './rules.js';
+import {KEYSETS,keyName,defaultHumans} from './players.js';
+import {RULE_DEFAULTS,RULE_RANGES} from './rules.js';
 import {createDialogLayer} from './ui/layer.js';
 import {createGunMouse} from './ui/gun-mouse.js';
 import {setUiSound} from './ui/widgets.js';
 import {createHud} from './hud.js';
 import {drawText} from './ui/font.js';
 import {gameTypeDialog,RULE_SUMMARY} from './ui/game-type-dialog.js';
-import {startGame1,startGame2,keysDialog} from './ui/start-game.js';
+import {startGame1,startGame2,keysDialog,LEVELS} from './ui/start-game.js';
 import {msgDialog,nameUsedText} from './ui/msg-dialog.js';
 import {setupDialog} from './ui/setup-dialog.js';
 import {pauseDialog} from './ui/pause-dialog.js';
@@ -21,8 +21,8 @@ import {scoreScreen} from './ui/score-screen.js';
 import {loadingDialog} from './ui/loading-dialog.js';
 import {exitScreen} from './ui/exit-screen.js';
 import {historyDialog} from './ui/history-dialog.js';
-import {sessionList,gameNameDialog} from './ui/net-dialogs.js';
-import {connectNet,hostLobby,guestLobby,hostGame,guestGame,netURL} from './net.js';
+import {createNetUI,inviteLink} from './net-ui.js';
+import {connectNet,hostLobby,guestLobby,hostGame,guestGame,MAX_PLAYERS} from './net.js';
 import {attachRemoteGame,remoteEvents} from './audio-bridge.js';
 import {createPhoneMenu} from './phone-ui.js';
 import {PLAYER_COLORS,colorCss} from './players.js';
@@ -32,11 +32,11 @@ setUiSound(sample=>globalThis.bulanciAudio?.playSample(4,sample,{whilePaused:tru
 createGunMouse($('#game-frame'),loadSpriteManifest(),()=>!$('#menu').hidden||!$('#dialog-layer').hidden);
 let maps={},manifest={resources:{}},game=null,paused=false,menu=true,mapKey='malaria',last=0,acc=0,muted=true,loading=true,toastUntil=0;
 const keys=[],images=new Map(),bitmaps=new Map(),sounds=['0-0.wav','0-1.wav','0-0.wav'].map(file=>new Audio('assets/original/audio/'+file));
-const touch=createTouchControls({frame:$('#game-frame'),onWeapon:()=>{if(netPlay?.role==='guest')netPlay.guest.weapon(0);else game?.switchWeapon(0);},onMenu:()=>netPlay?phoneLeave():pauseGame()});
+const touch=createTouchControls({frame:$('#game-frame'),onWeapon:()=>{if(netPlay?.role==='guest')netPlay.guest.weapon(0);else game?.switchWeapon(0);},onMenu:()=>netPlay?netPause():pauseGame()});
 // Phones get their own menu and sheets (phone-ui.js); the game stays the same.
 const phoneMenu=touch.isMobile()?createPhoneMenu({root:document.body,colors:PLAYER_COLORS.map((_,i)=>colorCss(i)),thumb:map=>layerSrc(map.layers[0]),
   onPlay:({level,human})=>{$('#map-select').value=level;$('#map-select').dispatchEvent(new Event('change'));$('#mode').value='training';$('#mode').dispatchEvent(new Event('change'));customHumans=[human];start().finally(()=>{customHumans=null;});},
-  onNetwork:()=>showScreen1(),onHistory:()=>showHistory(),onBack:()=>document.dispatchEvent(new CustomEvent('bulanci:menu-view',{detail:'start'}))}):null;
+  onNetwork:()=>openNet(),onHistory:()=>showHistory(),onBack:()=>document.dispatchEvent(new CustomEvent('bulanci:menu-view',{detail:'start'}))}):null;
 if(phoneMenu)new MutationObserver(()=>phoneMenu.setVisible(!$('#menu').hidden)).observe($('#menu'),{attributes:true,attributeFilter:['hidden']});
 // Colour sheets of a round stay decoded as bitmaps on phones: iOS drops decoded images and
 // redecoding one in the middle of the game makes the sprite vanish for a moment.
@@ -47,27 +47,28 @@ function drawImage(src,x,y,w,h){const im=image(src);if(im.complete&&im.naturalWi
 function message(text){$('#message').textContent=text;$('#message').style.opacity=1;toastUntil=performance.now()+2500;}
 function load(){return Promise.all([fetch('assets/original/maps.json').then(r=>{if(!r.ok)throw Error('Chybí data map');return r.json();}),fetch('assets/original/sprites/manifest.json').then(r=>r.json())]).then(([m,s])=>{maps=m;manifest=s;for(const map of Object.values(maps))for(const l of map.layers)image(l.resource===310?'assets/disco.jpg':`assets/original/${l.resource}.png`);for(const row of SHOT_DATA)for(const shot of row)image(`assets/original/${shot.resource}.png`);for(const n of manifest.undead_variant?.resources??[])image(`assets/original/sprites/${n}-undead-sheet.png`);for(const [n,r] of Object.entries(manifest.resources))if(r.width*r.height*r.frames<=1<<20)image(`assets/original/sprites/${n}-sheet.png`);image('assets/original/117.png');loading=false;phoneMenu?.setMaps([...$('#map-select').options].filter(o=>maps[o.value]).map(o=>({key:o.value,name:o.textContent,map:maps[o.value]})));$('#start-text').disabled=false;$('#start-text').textContent='START HRY';}).catch(e=>{loading=false;message('Nepodařilo se načíst data: '+e.message);console.error(e);});}
 function clear(){keys.length=0;touch.reset();}
-function showMenu(){if(!game||game.over||dialogs.modalOpen)return;menu=true;paused=true;clear();$('#menu').hidden=false;$('#resume').hidden=false;showStartScreen();}
+function showMenu(){if(netPlay)return netPause();if(!game||game.over||dialogs.modalOpen)return;menu=true;paused=true;clear();$('#menu').hidden=false;$('#resume').hidden=false;showStartScreen();}
 // Original pause (0x41c290): the game stands still under the Hra je pozastavena dialog.
 async function pauseGame(){if(!game||game.over||menu||paused||netPlay)return;paused=true;clear();document.dispatchEvent(new CustomEvent('bulanci:pause',{detail:true}));const r=await (phoneMenu?phoneMenu.pause():dialogs.open(pauseDialog({onSetup:openSetup})));paused=false;acc=0;document.dispatchEvent(new CustomEvent('bulanci:pause',{detail:false}));if(r==='end')game.finish();else canvas.focus();}
 function resume(){if(!game||game.over)return;menu=false;paused=false;clear();$('#menu').hidden=true;$('#result').hidden=true;acc=0;canvas.focus();}
-function onEvent(e){if(e.type==='powerup'&&e.player.id===0&&!e.player.bot)message(['Neviditelnost na 20 s','Štít na 20 s','Neomezené náboje na 20 s','Čas +15 s'][e.powerup.kind]);if(e.type==='shot'&&!muted){const sound=sounds[e.weapon??e.player.weapon];if(sound){const copy=sound.cloneNode();copy.volume=.35;copy.play().catch(()=>{});}}if(e.type==='pickup'&&e.player.id===0)message(WEAPONS[e.item.type].name+' — sebráno');if(e.type==='kill'&&e.victim.id===0)message('Zásah. Za chvíli jsi zpátky.');if(netPlay?.host)netPlay.host.event(e);if(e.type==='end'){netPlay?.host?.end();if(netPlay?.host)closeNet();showScore(game);}}
+function onEvent(e){if(e.type==='powerup'&&e.player.id===0&&!e.player.bot)message(['Neviditelnost na 20 s','Štít na 20 s','Neomezené náboje na 20 s','Čas +15 s'][e.powerup.kind]);if(e.type==='shot'&&!muted){const sound=sounds[e.weapon??e.player.weapon];if(sound){const copy=sound.cloneNode();copy.volume=.35;copy.play().catch(()=>{});}}if(e.type==='pickup'&&e.player.id===0)message(WEAPONS[e.item.type].name+' — sebráno');if(e.type==='kill'&&e.victim.id===0)message('Zásah. Za chvíli jsi zpátky.');if(netPlay?.host)netPlay.host.event(e);if(e.type==='end'){if(netPlay?.host)hostRoundOver();showScore(game);}}
 // After the round (0x41d5f0) the game view waits for the end sound 17 (0.72 s), then CScore runs
 // (0x401c66) with sample 4/29 in the music group; closing it returns to the start screen.
 async function showScore(ended){
   menu=false;await new Promise(r=>setTimeout(r,720));if(game!==ended)return;
   document.dispatchEvent(new CustomEvent('bulanci:score',{detail:true}));
   globalThis.bulanciAudio?.playSample(4,29,{category:'music',whilePaused:true});
-  if(phoneMenu)await phoneMenu.score(ended);else await dialogs.open(scoreScreen({game:ended,level:mapKey,manifest:await loadSpriteManifest()}));
+  if(phoneMenu){scoreDismiss=()=>phoneMenu.dismiss();await phoneMenu.score(ended);}else{const win=scoreScreen({game:ended,level:mapKey,manifest:await loadSpriteManifest()});scoreDismiss=()=>win.onOk();await dialogs.open(win);}scoreDismiss=null;
   document.dispatchEvent(new CustomEvent('bulanci:score',{detail:false}));
   if(game!==ended)return;
+  if(netPlay?.lobby){dropGame();return showLobby();}
   $('#result').hidden=true;$('#menu').hidden=false;$('#resume').hidden=true;menu=true;paused=true;showStartScreen();
 }
-let customHumans=null;
+let customHumans=null,scoreDismiss=null;
 async function start(){try{if(loading)await ready;dialogs.hide();if(!maps[$('#map-select').value])throw Error('Data mapy nejsou dostupná');mapKey=$('#map-select').value;const next=new Game({mapData:maps[mapKey],mode:$('#mode').value==='training'?'training':'local',humans:customHumans??defaultHumans($('#mode').value==='training'?1:$('#mode').value==='local3'?3:2),gameType:rulesState.type,limit:rulesState.limits[rulesState.type],weapons:rulesState.weapons,onEvent});await loadLevel(maps[mapKey],next.players);game=next;if(netPlay?.role==='host')netPlay.begin(game);if(location.search.includes('debug'))globalThis.bulanciGame=game;paused=false;menu=false;clear();acc=0;$('#menu').hidden=true;$('#result').hidden=true;$('#resume').hidden=false;canvas.focus();touch.setActive(true);if(phoneMenu)message(touch.isMobile()?'Palec vlevo: pohyb · vpravo: střelba':(game.humans.length>1?'S F E D / J L I K / Num 4 6 8 5: pohyb · A / M / Num 0: střelba · Q / N / Num 1: zbraň':'Šipky: pohyb · mezerník: střelba · C: zbraň'));}catch(e){console.error(e);message('Spuštění se nezdařilo: '+e.message);}}
 function direction(codes){for(let i=keys.length-1;i>=0;i--){const d=codes.indexOf(keys[i]);if(d>=0)return d;}return undefined;}
 // Each human reads the original key set of its profile (players.js); touch drives player 1.
-function input(){const t=touch.read();return (game?.players??[]).map((p,slot)=>{if(p.bot)return {};if(netPlay?.owners&&netPlay.owners[slot]!==0)return netPlay.host.input(slot);const k=KEYSETS[p.keys??0];const i={direction:direction(k.slice(0,4)),fire:keys.includes(k[4])};if(p.id===0){i.direction=t.direction??i.direction;i.fire=i.fire||t.fire;}return i;});}
+function input(){const t=touch.read();return (game?.players??[]).map((p,slot)=>{if(p.bot)return {};if(netPlay?.owners&&netPlay.owners[slot]!==0)return netPlay.host?.input(slot)??{};const k=KEYSETS[p.keys??0];const i={direction:direction(k.slice(0,4)),fire:keys.includes(k[4])};if(p.id===0){i.direction=t.direction??i.direction;i.fire=i.fire||t.fire;}return i;});}
 const localHumans=()=>netPlay?.role==='guest'?netPlay.humans:(game?.players??[]).filter((p,i)=>!p.bot&&(!netPlay?.owners||netPlay.owners[i]===0));
 const activeKeyCodes=()=>new Set(localHumans().flatMap(p=>KEYSETS[p.keys??0]));
 // Original frames, no substitute vector characters. Direction-specific resource
@@ -166,76 +167,98 @@ const PLAYERS_KEY='bulanci.players.v1';
 const savedHumans=total=>{try{const v=JSON.parse(localStorage.getItem(PLAYERS_KEY))?.[total];if(Array.isArray(v)&&v.length===Math.min(3,total))return v;}catch{}return defaultHumans(total);};
 const saveHumans=(total,list)=>{try{const all=JSON.parse(localStorage.getItem(PLAYERS_KEY))||{};all[total]=list;localStorage.setItem(PLAYERS_KEY,JSON.stringify(all));}catch{}};
 let menuView='start',startTotal=(()=>{try{return Number(localStorage.getItem('bulanci.total'))||2;}catch{return 2;}})();
-async function showScreen1(){closeNet();await dialogs.show(startGame1({total:startTotal,onNext:({total,local,join})=>{
-  if(join)return joinGame(local);
+async function showScreen1(){if(netPlay)return;await dialogs.show(startGame1({total:startTotal,onNext:({total,network})=>{
+  if(network)return openNet();
   startTotal=total;try{localStorage.setItem('bulanci.total',String(total));}catch{}
-  if(local<total)return hostGame_(total,local);showScreen2();}}));}
+  showScreen2();}}));}
 
-// ---- network game (net.js, net-server.mjs) ----------------------------------------------------
-// netPlay: {role, net, lobby, humans (players on this computer), owners (host: peer per slot),
-// host / guest (running game)}. Pause is not available in a network game.
-let netPlay=null;
-function closeNet(){if(!netPlay)return;const n=netPlay;netPlay=null;n.lobby?.close();n.host?.close();n.guest?.close();n.net.close();}
-// Phone: the pause button of a network game offers leaving; the game goes on meanwhile.
+// ---- network game (net.js, net-server.mjs, net-ui.js) ----------------------------------------
+// netPlay: {role (null on the game list), net, lobby, humans (players on this computer), code,
+// players, chat, info, owners (host: peer per slot), host / guest (running round)}. The game does
+// not stop for one player. A round ends in the results and everybody stays in the room.
+let netPlay=null,netPauseClose=null;
+const netUI=createNetUI({root:phoneMenu?document.body:$('#game-frame'),phone:!!phoneMenu,colors:PLAYER_COLORS.map((_,i)=>colorCss(i)),
+  levels:()=>LEVELS.filter(([key])=>maps[key]).map(([key,name])=>({key,name,src:layerSrc(maps[key].layers[0])})),
+  sprite:(colorIndex,seat)=>{const n=180+seat%4,info=manifest.resources[n];return info&&{url:`assets/original/sprites/${n}-c${colorIndex}-sheet.png`,w:info.width,h:info.height,frames:info.frames,ms:info.duration_ticks};},
+  keyHint:keys=>{const k=KEYSETS[keys??0],short=keyName;return keys===0?'Šipky, střelba mezerník, zbraň C':`${k.slice(0,4).map(short).join(' ')}, střelba ${short(k[4])}, zbraň ${short(k[5])}`;},
+  ruleRanges:RULE_RANGES});
+function humansFor(count){return phoneMenu&&count===1?[phoneMenu.player()]:savedHumans(count).map(h=>({...h}));}
+function keepHumans(list){if(phoneMenu&&list.length===1)phoneMenu.setPlayer(list[0]);else saveHumans(list.length,list);}
+function closeNet(){netUI.hide();if(!netPlay)return;const n=netPlay;netPlay=null;clearInterval(n.poll);n.lobby?.close();n.host?.close();n.guest?.close();n.net.close();}
 function dropGame(){game=null;touch.setActive(false);$('#menu').hidden=false;$('#resume').hidden=true;$('#result').hidden=true;menu=true;paused=true;}
-async function phoneLeave(){if(game?.over)return;const r=await phoneMenu?.pause({network:true});if(r!=='end'||!netPlay)return;closeNet();dropGame();showStartScreen();}
-// The connection or the other side is gone: a running round cannot go on, back to the start.
-async function netFailed(text){if(!netPlay)return;closeNet();if(game&&!game.over)dropGame();if(phoneMenu){await phoneMenu.notice(text.replaceAll('\u0001',''));phoneMenu.home();}else await dialogs.open(msgDialog(text));showScreen1();}
-function lobbyView(list,chat,total){const mine=netPlay?.net.peer;netPlay?.win?.updateLobby(list.filter(p=>p.peer!==mine),chat,list.length===total);}
-async function hostGame_(total,local){
-  const gameName=await dialogs.open(gameNameDialog(`Hra: ${savedHumans(local)[0].name}`));if(gameName===null)return showScreen1();
-  const net=connectNet();try{await net.ready;}catch(e){return netFailed(e.message);}
-  const humans=savedHumans(local).map(h=>({...h}));
-  netPlay={role:'host',net,humans};
-  net.on('disconnect',()=>{if(netPlay?.net===net)netFailed('Spojení se serverem bylo přerušeno.');});
-  const made=Promise.race([net.once('hosted'),net.once('error'),net.once('disconnect')]);net.send({t:'host',name:gameName,total});
-  const answer=await made;if(answer.t==='error')return netFailed('\u0001'+answer.text);if(answer.t!=='hosted')return;
-  netPlay.lobby=hostLobby(net,{total,locals:humans,onChange:(list,chat)=>lobbyView(list,chat,total)});
-  netPlay.win=await startGame2({total,humans,rules:()=>rulesState,levelKey:$('#map-select').value,network:{role:'host',onSay:t=>netPlay?.lobby.say(t)},
-    onBack:()=>showScreen1(),
-    onRules:async()=>{const r=await dialogs.open(gameTypeDialog(rulesState));if(r){Object.assign(rulesState,r);try{localStorage.setItem(RULES_KEY,JSON.stringify(rulesState));}catch{}syncRules();}},
-    onSettings:()=>openSetup(),onKeys:keys=>dialogs.open(keysDialog(keys)),onMessage:text=>dialogs.open(msgDialog(text)),
-    onPlayersChange:list=>{list.forEach((p,i)=>Object.assign(humans[i],p));saveHumans(local,list);netPlay?.lobby.publish();},
-    onLevelChange:key=>{$('#map-select').value=key;$('#map-select').dispatchEvent(new Event('change'));},
-    onStart:({players,levelKey})=>{
-      const all=netPlay.lobby.players();if(all.length!==total)return;
-      const used=new Set();for(const p of all){if(used.has(p.name))return dialogs.open(msgDialog(nameUsedText(p.name)));used.add(p.name);}
-      players.forEach((p,i)=>Object.assign(humans[i],p));saveHumans(local,players);
-      net.send({t:'start'});netPlay.owners=all.map(p=>p.peer);
-      $('#map-select').value=levelKey;$('#map-select').dispatchEvent(new Event('change'));$('#mode').value='local';
-      customHumans=all.map((p,i)=>p.peer===0?{...humans[i]}:{name:p.name,colorIndex:p.colorIndex,keys:null});
-      start().finally(()=>{customHumans=null;});
-    }});
-  netPlay.begin=g=>{netPlay.host=hostGame(net,{game:g,owners:netPlay.owners,onEmpty:()=>{message('Někdo z hráčů opustil hru.');g.finish();}});
+// Leaves whatever runs and shows the list of games; a notice says why.
+function netFailed(text){scoreDismiss?.();netPauseClose?.();closeNet();if(game)dropGame();openNet({notice:text});}
+function leaveNet(){closeNet();if(phoneMenu)phoneMenu.home();else{dialogs.hide();showScreen1();}}
+async function openNet({notice=null,code=null}={}) {
+  closeNet();if(loading)await ready;dialogs.hide();
+  const net=connectNet(),humans=humansFor(1);netPlay={role:null,net,humans};let reached=false;
+  const hub={humans,notice,onBack:leaveNet,onRetry:()=>openNet(),
+    onHumans:()=>keepHumans(humans),
+    onCreate:()=>createGame(net),onJoin:id=>joinGame(net,id)};
+  netUI.showHub(hub);
+  net.on('sessions',m=>netUI.setGames(m.list));
+  net.on('disconnect',()=>{if(netPlay?.net===net&&reached)netFailed('Spojení se serverem se přerušilo. Zkontrolujte připojení a zkuste to znovu.');});
+  try{await net.ready;}catch{if(netPlay?.net===net)netUI.setOffline();return;}
+  if(netPlay?.net!==net)return;reached=true;netUI.setOnline();
+  net.send({t:'list'});netPlay.poll=setInterval(()=>net.send({t:'list'}),1500);
+  if(code)joinGame(net,code);
+}
+const ruleSummary=()=>RULE_SUMMARY[rulesState.type](rulesState.limits[rulesState.type])+(rulesState.weapons==='shotgun'?' Pouze brokovnice.':'');
+function hostInfo(){const level=$('#map-select').value;return {level,levelName:LEVELS.find(l=>l[0]===level)?.[1]??'',summary:ruleSummary(),rules:{type:rulesState.type,limit:rulesState.limits[rulesState.type],weapons:rulesState.weapons},playing:!!netPlay?.round};}
+function lobbyEntered(net,role,id){clearInterval(netPlay.poll);Object.assign(netPlay,{role,code:id,chat:[],players:[],info:null});}
+async function createGame(net) {
+  const humans=netPlay.humans,made=Promise.race([net.once('hosted'),net.once('error'),net.once('disconnect')]);
+  net.send({t:'host',name:`Hra: ${humans[0].name}`,total:MAX_PLAYERS});
+  const answer=await made;if(netPlay?.net!==net)return;if(answer.t==='error')return netUI.notice(answer.text);if(answer.t!=='hosted')return;
+  lobbyEntered(net,'host',answer.id);
+  netPlay.lobby=hostLobby(net,{locals:()=>netPlay.humans,info:hostInfo,onChange:(list,chat)=>{netPlay.players=list;netPlay.chat=chat;netPlay.info=hostInfo();showLobby();},
+    onLeave:names=>{if(netPlay.round){const text=`Odchází: ${names.join(', ')}`;message(text);net.post({kind:'notice',text});}},
+    onJoin:names=>{if(netPlay.round)message(`Čeká na další kolo: ${names.join(', ')}`);}});
+  netPlay.begin=g=>{netPlay.host=hostGame(net,{game:g,owners:netPlay.owners,onEmpty:()=>{message('Na hřišti nezbyl nikdo, s kým hrát.');g.finish();}});
     net.post({kind:'start',level:mapKey,map:g.map,rules:g.rules,players:g.players.map((p,i)=>({id:p.id,name:p.name,colorIndex:p.colorIndex,peer:netPlay.owners[i]}))});};
   netPlay.lobby.publish();
-  await dialogs.show(netPlay.win);
 }
-async function joinGame(local){
-  // The original asked for a computer's address here. The web has one server, the one that
-  // serves the page, so the list of its games opens straight away.
-  const net=connectNet();try{await net.ready;}catch(e){return netFailed(e.message);}
-  netPlay={role:'guest',net,humans:savedHumans(local).map(h=>({...h}))};
-  net.on('closed',()=>{if(netPlay?.net===net)netFailed('Někdo z hráčů opustil hru.');});
-  net.on('disconnect',()=>{if(netPlay?.net===net)netFailed('Spojení se serverem bylo přerušeno.');});
-  const session=await dialogs.open(sessionList({search:()=>net.list()}));if(!session)return showScreen1();
-  const result=Promise.race([net.once('joined'),net.once('error'),net.once('disconnect')]);net.send({t:'join',id:session.id});
-  const r=await result;if(r.t==='error')return netFailed('\u0001'+r.text);if(r.t!=='joined')return;
-  const humans=netPlay.humans;let first=null;const ready=new Promise(ok=>{first=ok;});
-  netPlay.lobby=guestLobby(net,{humans:()=>humans,onChange:(list,chat,total)=>{netPlay.total=total;first?.();lobbyView(list,chat,total);},
-    onStart:m=>guestStart(m),onReject:text=>netFailed('\u0001Připojení ke hře bylo odmítnuto,\n\u0001protože je na tomto počítači příliš mnoho hráčů.')});
-  await ready;if(netPlay?.net!==net)return;
-  netPlay.win=await startGame2({total:netPlay.total,humans,rules:()=>rulesState,levelKey:$('#map-select').value,network:{role:'guest',onSay:t=>netPlay?.lobby.say(t)},
-    onBack:()=>showScreen1(),onRules:async()=>{},onSettings:()=>openSetup(),onKeys:keys=>dialogs.open(keysDialog(keys)),onMessage:text=>dialogs.open(msgDialog(text)),
-    onPlayersChange:list=>{list.forEach((p,i)=>Object.assign(humans[i],p));saveHumans(local,list);netPlay?.lobby.hello();},onStart:()=>{}});
-  netPlay.lobby.hello();
-  await dialogs.show(netPlay.win);
+async function joinGame(net,id) {
+  const result=Promise.race([net.once('joined'),net.once('error'),net.once('disconnect')]);net.send({t:'join',id});
+  const r=await result;if(netPlay?.net!==net)return;if(r.t==='error')return netUI.notice(r.text);if(r.t!=='joined')return;
+  lobbyEntered(net,'guest',r.id);
+  net.on('closed',()=>{if(netPlay?.net===net)netFailed('Hostitel hru ukončil.');});
+  net.on('kicked',()=>{if(netPlay?.net===net)netFailed('Hostitel vás ze hry odebral.');});
+  netPlay.lobby=guestLobby(net,{humans:()=>netPlay.humans,onChange:(list,chat,info)=>{netPlay.players=list;netPlay.chat=chat;if(info)netPlay.info=info;showLobby();},
+    onStart:m=>guestStart(m),onNotice:text=>message(text),
+    onReject:text=>{if(netPlay.players.some(p=>p.peer===net.peer)){netPlay.humans.pop();netUI.notice(text);showLobby();}else netFailed(text);}});
+}
+function setLocalPlayers(count){const old=netPlay.humans,next=humansFor(count);old.forEach((h,i)=>{if(next[i])Object.assign(next[i],h,{keys:next[i].keys});});netPlay.humans=next;netChanged();}
+function netChanged(){if(netPlay.role==='host')netPlay.lobby.publish();else netPlay.lobby.hello();}
+function setRules(patch){if(patch.type)rulesState.type=patch.type;if(patch.weapons)rulesState.weapons=patch.weapons;if(patch.limit!==undefined){const [lo,hi]=RULE_RANGES[rulesState.type];rulesState.limits[rulesState.type]=Math.min(hi,Math.max(lo,Math.round(patch.limit)||lo));}try{localStorage.setItem(RULES_KEY,JSON.stringify(rulesState));}catch{}syncRules();netPlay.lobby.publish();}
+function setLevel(key){$('#map-select').value=key;$('#map-select').dispatchEvent(new Event('change'));netPlay.lobby.publish();}
+// The room as this computer sees it; the view keeps what has not changed.
+function showLobby() {
+  if(!netPlay?.lobby||!menu||!netPlay.info)return;
+  netUI.showLobby({role:netPlay.role,code:netPlay.code,link:inviteLink(netPlay.code),peer:netPlay.net.peer,players:netPlay.players,chat:netPlay.chat,info:netPlay.info,humans:netPlay.humans,maxPlayers:MAX_PLAYERS,
+    onHuman:(i,patch)=>{Object.assign(netPlay.humans[i],patch);keepHumans(netPlay.humans);netChanged();},
+    onLocalPlayers:setLocalPlayers,onLevel:setLevel,onRules:setRules,onSay:t=>netPlay.lobby.say(t),onKick:peer=>netPlay.net.send({t:'kick',peer}),onStart:hostStart,onLeave:leaveNet});
+}
+function hostStart() {
+  const all=netPlay.lobby.players();if(all.length<2)return;
+  netPlay.owners=all.map(p=>p.peer);netPlay.round=true;netPlay.net.send({t:'start'});netPlay.lobby.publish();netUI.hide();
+  $('#mode').value='local';customHumans=all.map((p,i)=>({name:p.name,colorIndex:p.colorIndex,keys:p.peer===0?netPlay.humans[i].keys:null}));
+  start().finally(()=>{customHumans=null;});
+}
+function hostRoundOver(){netPauseClose?.();netPlay.host.end();netPlay.host.close();Object.assign(netPlay,{host:null,owners:null,round:false});netPlay.net.send({t:'reopen'});netPlay.lobby.publish();}
+// In a network game the pause only offers the way out; the round goes on behind it.
+async function netPause() {
+  if(!game||game.over||menu||netPauseClose)return;clear();const role=netPlay.role;let r;
+  if(phoneMenu){netPauseClose=()=>phoneMenu.dismiss();r=await phoneMenu.pause({network:role});}
+  else{const win=pauseDialog({onSetup:openSetup,network:role});netPauseClose=()=>win.onCancel();r=await dialogs.open(win);}
+  netPauseClose=null;if(r!=='end'||!netPlay)return;
+  if(role==='host')game.finish();else{closeNet();dropGame();openNet();}
 }
 // Guest: load the host's level, then draw the snapshots; keys go to the host.
 async function guestStart(m){
-  if(!netPlay)return;dialogs.hide();mapKey=m.level;
+  if(!netPlay)return;scoreDismiss?.();game=null;netUI.hide();dialogs.hide();mapKey=m.level;
   await loadLevel(m.map,m.players);if(!netPlay)return;
-  netPlay.guest=guestGame(netPlay.net,{start:m,onSnapshot:(g,events)=>remoteEvents(g,events),onEnd:g=>{closeNet();showScore(g);},onLost:()=>netFailed('Hra se přerušila: hostitel neodpovídá.')});
+  netPlay.guest=guestGame(netPlay.net,{start:m,onSnapshot:(g,events)=>remoteEvents(g,events),onEnd:g=>{netPauseClose?.();netPlay.guest.close();netPlay.guest=null;showScore(g);},onStall:()=>message('Čekám na hostitele…'),onLost:()=>netFailed('Hostitel přestal odpovídat, hra se přerušila.')});
   game=netPlay.guest.game;attachRemoteGame(game,m.level);
   paused=false;menu=false;clear();$('#menu').hidden=true;$('#result').hidden=true;$('#resume').hidden=false;canvas.focus();touch.setActive(true);
 }
@@ -286,6 +309,8 @@ document.addEventListener('bulanci:menu-view',e=>{menuView=e.detail;showStartScr
 new MutationObserver(()=>{const popup=$('.menu-sound-popup');dialogs.suspend(!!popup&&!popup.hidden);}).observe($('#menu'),{subtree:true,childList:true,attributes:true,attributeFilter:['hidden']});
 $('#sound').onclick=()=>{muted=!muted;$('#sound').textContent=muted?'Zvuk vypnutý':'Zvuk zapnutý';};$('#fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('#game-frame').requestFullscreen();}catch{message('Celá obrazovka není dostupná.');}};
 $('#history').onclick=()=>$('#about').showModal();$('#close-about').onclick=()=>$('#about').close();
-window.addEventListener('keydown',e=>{if($('#about').open)return;if(/^(SELECT|INPUT|BUTTON)$/.test(document.activeElement.tagName)&&menu)return;if(e.code==='Escape'){e.preventDefault();if(menu)resume();else pauseGame();return;}if(menu||game?.over)return;if(!activeKeyCodes().has(e.code))return;e.preventDefault();if(!keys.includes(e.code))keys.push(e.code);if(!e.repeat)localHumans().forEach((p,k)=>{if(KEYSETS[p.keys??0][5]!==e.code)return;if(netPlay?.role==='guest')netPlay.guest.weapon(k);else game.switchWeapon(p.id);});});window.addEventListener('keyup',e=>{const i=keys.indexOf(e.code);if(i>=0)keys.splice(i,1);});window.addEventListener('blur',()=>{clear();pauseGame();});document.addEventListener('visibilitychange',()=>{if(document.hidden){clear();pauseGame();}});
+window.addEventListener('keydown',e=>{if($('#about').open)return;if(/^(SELECT|INPUT|BUTTON)$/.test(document.activeElement.tagName)&&menu)return;if(e.code==='Escape'){e.preventDefault();if(menu)resume();else if(netPlay)netPause();else pauseGame();return;}if(menu||game?.over)return;if(!activeKeyCodes().has(e.code))return;e.preventDefault();if(!keys.includes(e.code))keys.push(e.code);if(!e.repeat)localHumans().forEach((p,k)=>{if(KEYSETS[p.keys??0][5]!==e.code)return;if(netPlay?.role==='guest')netPlay.guest.weapon(k);else game.switchWeapon(p.id);});});window.addEventListener('keyup',e=>{const i=keys.indexOf(e.code);if(i>=0)keys.splice(i,1);});window.addEventListener('blur',()=>{clear();pauseGame();});document.addEventListener('visibilitychange',()=>{if(document.hidden){clear();pauseGame();}});
 $('#start-text').disabled=true;$('#start-text').textContent='NAČÍTÁM DATA…';const ready=load();requestAnimationFrame(frame);
+// An invitation link goes straight to the room.
+{const url=new URL(location.href),code=url.searchParams.get('hra');if(code){url.searchParams.delete('hra');history.replaceState(null,'',url);ready.then(()=>openNet({code}));}}
 ready.then(()=>showStartScreen());

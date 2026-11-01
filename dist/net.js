@@ -4,17 +4,19 @@
 // every player, the other browsers send their keys and draw the snapshots the host sends.
 //
 // Lobby messages (relayed in {t:'send'} data):
-//   hello   {humans:[{name,colorIndex}]}            guest -> host, also after any change
-//   lobby   {players:[{name,colorIndex,peer}],total} host -> all
-//   reject  {text}                                   host -> guest (no free slot)
+//   hello   {humans:[{name,colorIndex}]}             guest -> host, also after any change
+//   lobby   {players,info}                           host -> all; info: level, rules, playing
+//   reject  {text}                                   host -> guest (no free place)
 //   chat    {text}                                   anyone -> all
+//   notice  {text}                                   host -> all, during a round
 //   start   {level,map,rules,players}                host -> all
 // Game messages:
 //   input   {inputs:[{direction,fire,presses}]}      guest -> host, on every change
 //   weapon  {index}                                  guest -> host (local player index)
 //   snap    {s,events}                               host -> all, every SNAP_TICKS ticks
 //   end     {s}                                      host -> all
-export const SNAP_TICKS=2,HOST_TIMEOUT=8000,SNAP_MS=SNAP_TICKS*1000/60,GLIDE_LIMIT=80;
+import {eliminated} from './rules.js';
+export const SNAP_TICKS=2,HOST_TIMEOUT=8000,STALL_NOTICE=2500,SNAP_MS=SNAP_TICKS*1000/60,GLIDE_LIMIT=80,MAX_PLAYERS=4;
 export const netURL=()=>`${location.protocol==='https:'?'wss':'ws'}://${location.host}/net`;
 
 export function connectNet(url=netURL()) {
@@ -29,7 +31,7 @@ export function connectNet(url=netURL()) {
     list(){const p=Promise.race([net.once('sessions'),net.once('disconnect')]);net.send({t:'list'});return p.then(m=>m.list??[]);},
     close(){try{ws.close();}catch{}},
   };
-  net.ready=new Promise((ok,fail)=>{ws.onopen=()=>{net.open=true;ok(net);};ws.onerror=()=>fail(new Error('Hra po síti tady nejde, potřebuje běžící server. Hrajte na adrese svého serveru.'));});
+  net.ready=new Promise((ok,fail)=>{ws.onopen=()=>{net.open=true;ok(net);};ws.onerror=()=>fail(new Error('Herní server neodpovídá.'));});
   ws.onmessage=e=>{let m;try{m=JSON.parse(e.data);}catch{return;}
     if(m.t==='msg'&&m.data&&typeof m.data==='object')emit(m.data.kind,{...m.data,from:m.from});
     else{if(m.t==='hosted'||m.t==='joined'){net.peer=m.peer;net.sessionId=m.id;}emit(m.t,m);}};
@@ -37,42 +39,63 @@ export function connectNet(url=netURL()) {
   return net;
 }
 
-// Host lobby: own players first, then each guest's players in join order (max `total`).
-export function hostLobby(net,{total,locals,onChange}) {
-  const guests=new Map();const chat=[];
-  const players=()=>[...locals.map(h=>({...h,peer:0})),...[...guests].flatMap(([peer,hs])=>hs.map(h=>({...h,peer})))];
-  const publish=()=>{const list=players();net.post({kind:'lobby',players:list.map(({name,colorIndex,peer})=>({name,colorIndex,peer})),total});onChange?.(list,chat);};
+// Everybody in a game has an own name and colour, so nobody has to sort out two green Bulíks:
+// who came first keeps theirs, the next one gets a number or the first free colour.
+export function settle(list) {
+  const names=new Set(),colors=new Set();
+  return list.map(p=>{
+    let name=p.name,n=1;while(names.has(name))name=`${p.name.slice(0,36)} ${++n}`;names.add(name);
+    const colorIndex=colors.has(p.colorIndex)?[0,1,2,3,4,5,6,7].find(c=>!colors.has(c)):p.colorIndex;colors.add(colorIndex);
+    return {...p,name,colorIndex};
+  });
+}
+
+// Host lobby: own players first, then each guest's players in join order. info() describes the
+// game for the guests and the server's list.
+export function hostLobby(net,{locals,info,onChange,onJoin,onLeave}) {
+  const guests=new Map(),chat=[];
+  const players=()=>settle([...locals().map(h=>({...h,peer:0})),...[...guests].flatMap(([peer,hs])=>hs.map(h=>({...h,peer})))]);
+  const publish=()=>{
+    const list=players(),about=info();
+    net.post({kind:'lobby',players:list.map(({name,colorIndex,peer})=>({name,colorIndex,peer})),info:about});
+    net.send({t:'info',level:about.levelName,rule:about.summary,seats:list.length});onChange?.(list,chat);
+  };
+  const say=line=>{chat.push(line.slice(0,160));net.post({kind:'chat',text:line.slice(0,160)});onChange?.(players(),chat);};
   const offs=[
     net.on('hello',m=>{
-      const humans=(m.humans??[]).slice(0,3).map(h=>({name:String(h.name??'').slice(0,40)||'Hráč',colorIndex:(h.colorIndex|0)&7}));
+      const humans=(m.humans??[]).slice(0,3).map(h=>({name:String(h.name??'').slice(0,40)||'Hráč',colorIndex:(h.colorIndex|0)&7})),fresh=!guests.has(m.from);
       const others=players().filter(p=>p.peer!==m.from).length;
-      if(others+humans.length>total){net.post({kind:'reject',text:'Ve hře není dost volných míst.'},m.from);return;}
+      if(others+humans.length>MAX_PLAYERS){net.post({kind:'reject',text:fresh?'Ve hře není dost volných míst.':'Další hráč se už nevejde.'},m.from);return;}
       guests.set(m.from,humans);publish();
+      if(fresh){const names=players().filter(p=>p.peer===m.from).map(p=>p.name);say(`Přichází: ${names.join(', ')}`);onJoin?.(names);}
     }),
-    net.on('peer-leave',m=>{if(guests.delete(m.peer))publish();}),
+    net.on('peer-leave',m=>{
+      const names=players().filter(p=>p.peer===m.peer).map(p=>p.name);
+      if(guests.delete(m.peer)){publish();say(`Odchází: ${names.join(', ')}`);onLeave?.(names);}
+    }),
     net.on('chat',m=>{chat.push(String(m.text).slice(0,160));onChange?.(players(),chat);}),
   ];
   return {
     players,chat,publish,
-    say(text){const line=`${locals[0]?.name??'Host'}: ${text}`.slice(0,160);chat.push(line);net.post({kind:'chat',text:line});onChange?.(players(),chat);},
-    full:()=>players().length===total,
+    say(text){say(`${players()[0]?.name??'Host'}: ${text}`);},
     close(){offs.forEach(f=>f());},
   };
 }
 
-export function guestLobby(net,{humans,onChange,onStart,onReject}) {
-  let players=[],total=0;const chat=[];
+export function guestLobby(net,{humans,onChange,onStart,onReject,onNotice}) {
+  let players=[],info=null;const chat=[];
   const offs=[
-    net.on('lobby',m=>{if(m.from!==0)return;players=m.players;total=m.total;onChange?.(players,chat,total);}),
-    net.on('chat',m=>{chat.push(String(m.text).slice(0,160));onChange?.(players,chat,total);}),
+    net.on('lobby',m=>{if(m.from!==0)return;players=m.players;info=m.info;onChange?.(players,chat,info);}),
+    net.on('chat',m=>{chat.push(String(m.text).slice(0,160));onChange?.(players,chat,info);}),
     net.on('reject',m=>{if(m.from===0)onReject?.(m.text);}),
+    net.on('notice',m=>{if(m.from===0)onNotice?.(String(m.text).slice(0,160));}),
     net.on('start',m=>{if(m.from===0)onStart?.(m);}),
   ];
   const hello=()=>net.post({kind:'hello',humans:humans().map(({name,colorIndex})=>({name,colorIndex}))},0);
   hello();
   return {
     hello,chat,get players(){return players;},
-    say(text){const line=`${humans()[0]?.name??'Hráč'}: ${text}`.slice(0,160);chat.push(line);net.post({kind:'chat',text:line});onChange?.(players,chat,total);},
+    say(text){const line=`${players.find(p=>p.peer===net.peer)?.name??'Hráč'}: ${text}`.slice(0,160);chat.push(line);net.post({kind:'chat',text:line});onChange?.(players,chat,info);},
     close(){offs.forEach(f=>f());},
   };
 }
@@ -105,12 +128,15 @@ export function unpackEvent(e,game) {
 // Host: remote inputs by player index, with presses counted so a short tap between two ticks
 // still fires once (the engine fires on the press edge, 0x4121a0).
 export function hostGame(net,{game,owners,onEmpty}) {
-  const remote=new Map(),events=[],gone=new Set();let tick=0;
+  const remote=new Map(),events=[];let tick=0;
   const offs=[
     net.on('input',m=>{let k=0;owners.forEach((peer,i)=>{if(peer===m.from){const input=m.inputs?.[k++];if(input){const prev=remote.get(i);remote.set(i,{direction:[0,1,2,3].includes(input.direction)?input.direction:undefined,fire:!!input.fire,presses:input.presses|0,used:prev?.used??0});}}});}),
     net.on('weapon',m=>{let k=0;owners.forEach((peer,i)=>{if(peer===m.from&&k++===(m.index|0))game.switchWeapon(i);});}),
-    // A leaver's last keys must not stay held; with no guest left the round has no point.
-    net.on('peer-leave',m=>{owners.forEach((peer,i)=>{if(peer===m.peer){remote.delete(i);gone.add(peer);}});if(owners.every(peer=>peer===0||gone.has(peer)))onEmpty?.();}),
+    // A leaver vanishes from the field; the round goes on while two players can still fight.
+    net.on('peer-leave',m=>{
+      let left=false;owners.forEach((peer,i)=>{if(peer===m.peer){remote.delete(i);game.players[i].active=false;left=true;}});
+      if(left&&game.players.filter(p=>!p.bot&&p.active!==false&&!eliminated(game.rules,p)).length<2)onEmpty?.();
+    }),
   ];
   return {
     event(e){events.push(packEvent(e));},
@@ -123,7 +149,7 @@ export function hostGame(net,{game,owners,onEmpty}) {
 }
 
 // Guest: a mirror the renderer and the score screen read like a Game; it never simulates.
-export function guestGame(net,{start,onSnapshot,onEnd,onLost}) {
+export function guestGame(net,{start,onSnapshot,onEnd,onLost,onStall}) {
   const game={mirror:true,map:start.map,mode:'local',humans:start.players,rules:start.rules,players:[],npcs:[],bullets:[],pickups:[],powerups:null,creatures:[],mines:[],explosions:[],teleports:[],sceneAnims:null,time:0,elapsed:0,over:false,
     switchWeapon(){},finish(){}};
   let heard=Date.now();
@@ -145,7 +171,7 @@ export function guestGame(net,{start,onSnapshot,onEnd,onLost}) {
     onSnapshot?.(game,(m.events??[]).map(e=>unpackEvent(e,game)));return true;
   };
   // The host's tab can sleep (phone locked, tab hidden) with its connection still open.
-  const watchdog=setInterval(()=>{if(Date.now()-heard>HOST_TIMEOUT)onLost?.();},1000);watchdog.unref?.();
+  const watchdog=setInterval(()=>{const quiet=Date.now()-heard;if(quiet>HOST_TIMEOUT)onLost?.();else if(quiet>STALL_NOTICE)onStall?.();},1000);watchdog.unref?.();
   const offs=[net.on('snap',apply),net.on('end',m=>{if(!apply(m))return;game.over=true;clearInterval(watchdog);onEnd?.(game);})];
   let presses=[],last='';
   return {

@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {hostGame,guestGame,packEvent,unpackEvent,snapshot} from '../dist/net.js';
+import {hostGame,guestGame,hostLobby,guestLobby,settle,packEvent,unpackEvent,snapshot} from '../dist/net.js';
 import {Game} from '../dist/engine.js';
 
 // A fake relay: handlers by message kind, posted messages recorded.
-function fakeNet(){const handlers=new Map(),posted=[];return {posted,on(t,f){handlers.set(t,f);return()=>handlers.delete(t);},post(data,to,drop){posted.push({data,to,drop});},emit(t,m){handlers.get(t)?.(m);}};}
+function fakeNet(){const handlers=new Map(),posted=[];return {posted,on(t,f){handlers.set(t,f);return()=>handlers.delete(t);},post(data,to,drop){posted.push({data,to,drop});},send(m){this.sent.push(m);},sent:[],peer:0,emit(t,m){handlers.get(t)?.(m);}};}
 const blank={name:'Test',layers:[],obstacles:[]};
 
 test('a guest tap between two host ticks still fires once (press counter over the fire edge)',()=>{
@@ -35,6 +35,37 @@ test('a leaving guest stops at once and the last one leaving empties the game',(
   const host=hostGame(net,{game,owners:[0,1],onEmpty:()=>empty++});
   net.emit('input',{from:1,inputs:[{direction:1,fire:true,presses:1}]});assert.equal(host.input(1).direction,1);
   net.emit('peer-leave',{peer:1});assert.deepEqual(host.input(1),{});assert.equal(empty,1);
+});
+
+test('a leaver vanishes and the round goes on while two players are left',()=>{
+  const net=fakeNet(),game=new Game({mapData:blank,mode:'local',random:()=>.5,humans:[{name:'A'},{name:'B'},{name:'C'}]});let empty=0;
+  hostGame(net,{game,owners:[0,1,2],onEmpty:()=>empty++});
+  net.emit('peer-leave',{peer:2});assert.equal(game.players[2].active,false);assert.equal(empty,0);
+  net.emit('peer-leave',{peer:1});assert.equal(empty,1);
+});
+
+test('two players with the same defaults end up with different names and colours',()=>{
+  const list=settle([{name:'Bulík',colorIndex:0},{name:'Bulík',colorIndex:0},{name:'Bulík',colorIndex:1},{name:'Uzlík',colorIndex:2}]);
+  assert.deepEqual(list.map(p=>p.name),['Bulík','Bulík 2','Bulík 3','Uzlík']);assert.deepEqual(list.map(p=>p.colorIndex),[0,1,2,3]);
+});
+
+test('the lobby tells guests the level and rules, takes up to 4 players and greets newcomers',()=>{
+  const net=fakeNet(),info={levelName:'Exitus',level:'exitus',summary:'x',rules:{},playing:false};
+  const lobby=hostLobby(net,{locals:()=>[{name:'A',colorIndex:0}],info:()=>info});
+  net.emit('hello',{from:1,humans:[{name:'B',colorIndex:0},{name:'C',colorIndex:1}]});
+  assert.deepEqual(lobby.players().map(p=>[p.name,p.colorIndex,p.peer]),[['A',0,0],['B',1,1],['C',2,1]]);
+  assert.equal(net.posted.find(p=>p.data.kind==='lobby').data.info.level,'exitus');assert.equal(net.sent.at(-1).seats,3);assert.equal(lobby.chat[0],'Přichází: B, C');
+  net.emit('hello',{from:2,humans:[{name:'D',colorIndex:3},{name:'E',colorIndex:4}]});
+  assert.equal(net.posted.at(-1).data.kind,'reject');assert.equal(net.posted.at(-1).to,2);assert.equal(lobby.players().length,3);
+  net.emit('peer-leave',{peer:1});assert.equal(lobby.players().length,1);assert.equal(lobby.chat.at(-1),'Odchází: B, C');
+});
+
+test("a guest gets the lobby with the host's level and only the host speaks for it",()=>{
+  const net=fakeNet();let seen=null;
+  guestLobby(net,{humans:()=>[{name:'B',colorIndex:1}],onChange:(p,c,info)=>{seen=info;}});
+  assert.equal(net.posted[0].data.kind,'hello');
+  net.emit('lobby',{from:2,players:[],info:{level:'x'}});assert.equal(seen,null);
+  net.emit('lobby',{from:0,players:[],info:{level:'exitus'}});assert.equal(seen.level,'exitus');
 });
 
 test('a guest cannot forge the host: only peer 0 drives the mirror, bad directions are ignored',()=>{
