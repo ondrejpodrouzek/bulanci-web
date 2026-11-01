@@ -1,7 +1,21 @@
 // Original network dialogs (analysis/ui-dialogs.txt). The web plays over the WebSocket relay of
 // the server that serves the page, so the "computer" is that server's address.
-import {StaticText,Button,ListBox,Window,sunkenFrame,stateAlpha} from './widgets.js';
+import {StaticText,Button,TextEdit,ListBox,Window,sunkenFrame,stateAlpha} from './widgets.js';
 import {drawText} from './font.js';
+
+// Web addition: the original named a session after its host. Same look as its CTcpIpConfig.
+export function gameNameDialog(suggestion) {
+  const edit=new TextEdit({x:20,y:60,w:272,value:suggestion,digits:30});
+  const win=new Window({w:312,h:145,widgets:[
+    new StaticText({x:20,y:20,w:272,h:30,flags:5,text:'Název hry:'}),
+    edit,
+    new Button({x:73,y:100,text:'Ok',onClick:()=>win.onOk()}),
+    new Button({x:163,y:100,text:'Zrušit',onClick:()=>win.onCancel()}),
+  ]});
+  win.setFocus(edit);
+  win.onOk=()=>edit.text.trim()||suggestion;win.onCancel=()=>null;
+  return win;
+}
 
 // CSessionList (0x40c2d0): window 335x244, status text 0x80 'Inicializuje se hledání...' then
 // 'Hledám hry...', the list (20,50)-(315,180), Připojit (83,200) and Zrušit (173,200).

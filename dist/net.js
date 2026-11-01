@@ -14,7 +14,7 @@
 //   weapon  {index}                                  guest -> host (local player index)
 //   snap    {s,events}                               host -> all, every SNAP_TICKS ticks
 //   end     {s}                                      host -> all
-export const SNAP_TICKS=2,HOST_TIMEOUT=8000;
+export const SNAP_TICKS=2,HOST_TIMEOUT=8000,SNAP_MS=SNAP_TICKS*1000/60,GLIDE_LIMIT=80;
 export const netURL=()=>`${location.protocol==='https:'?'wss':'ws'}://${location.host}/net`;
 
 export function connectNet(url=netURL()) {
@@ -127,7 +127,23 @@ export function guestGame(net,{start,onSnapshot,onEnd,onLost}) {
   const game={mirror:true,map:start.map,mode:'local',humans:start.players,rules:start.rules,players:[],npcs:[],bullets:[],pickups:[],powerups:null,creatures:[],mines:[],explosions:[],teleports:[],sceneAnims:null,time:0,elapsed:0,over:false,
     switchWeapon(){},finish(){}};
   let heard=Date.now();
-  const apply=m=>{if(m.from!==0)return false;heard=Date.now();Object.assign(game,m.s);onSnapshot?.(game,(m.events??[]).map(e=>unpackEvent(e,game)));return true;};
+  // Snapshots come every 33 ms: a mover glides to the new place instead of jumping. A long way
+  // is a respawn or a teleport and stays a jump.
+  const glide=[];
+  function prepare(before,now) {
+    glide.length=0;
+    for(const list of ['players','npcs'])for(const p of game[list]??[]) {
+      const old=before.get(`${list}${p.id}`);
+      if(old&&(old.x!==p.x||old.y!==p.y)&&Math.hypot(old.x-p.x,old.y-p.y)<GLIDE_LIMIT){glide.push({p,fromX:old.x,fromY:old.y,toX:p.x,toY:p.y,at:now});p.x=old.x;p.y=old.y;}
+    }
+  }
+  const apply=(m,now=performance.now())=>{
+    if(m.from!==0)return false;heard=Date.now();
+    const before=new Map();for(const list of ['players','npcs'])for(const p of game[list]??[])before.set(`${list}${p.id}`,{x:p.x,y:p.y});
+    for(const g of glide){g.p.x=g.toX;g.p.y=g.toY;}
+    Object.assign(game,m.s);prepare(before,now);
+    onSnapshot?.(game,(m.events??[]).map(e=>unpackEvent(e,game)));return true;
+  };
   // The host's tab can sleep (phone locked, tab hidden) with its connection still open.
   const watchdog=setInterval(()=>{if(Date.now()-heard>HOST_TIMEOUT)onLost?.();},1000);watchdog.unref?.();
   const offs=[net.on('snap',apply),net.on('end',m=>{if(!apply(m))return;game.over=true;clearInterval(watchdog);onEnd?.(game);})];
@@ -139,6 +155,7 @@ export function guestGame(net,{start,onSnapshot,onEnd,onLost}) {
       const key=JSON.stringify(out);if(key!==last){last=key;net.post({kind:'input',inputs:out},0);}
     },
     weapon(index){net.post({kind:'weapon',index},0);},
+    smooth(now){for(const g of glide){const t=Math.min(1,(now-g.at)/SNAP_MS);g.p.x=g.fromX+(g.toX-g.fromX)*t;g.p.y=g.fromY+(g.toY-g.fromY)*t;}},
     close(){clearInterval(watchdog);offs.forEach(f=>f());},
   };
 }

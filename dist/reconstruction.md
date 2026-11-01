@@ -251,7 +251,7 @@ The original created a DirectPlay session (Start hry 1: Vytvořit / Připojit se
 
 Screens follow the original: Start hry 1 enables Připojit se and TCP/IP (not IPX); a network game comes from Vytvořit with fewer players on this computer than in total (up to 4), or from Připojit se. Connecting: the web skips CTcpIpConfig (`0x40c060`), because the server that serves the page is the only one, and opens CSessionList (`0x40c2d0`, with Připojit / Zrušit). Start hry 2 shows players of other computers in further columns, chat `0x4102d0` at (240,244) (list 250,270–510,410, line 250,418–510,450, font 175, 120 characters) and a waiting message (0xfc). Only the host can start, once everyone is connected; the same-name check applies across computers (`0x40f610`). Messages: rejection for too many players (0x160), a player leaving (0x6c).
 
-By default the server listens only on 127.0.0.1; for LAN play start it with `BULANCI_HOST=0.0.0.0`. Web: `dist/net.js`, `dist/ui/net-dialogs.js`; tests `test/net-server.test.mjs`, `test/net.test.mjs`; two-browser check `verify-network.mjs`.
+The host names the game in a web-only dialog. Guests glide movers between snapshots over 33 ms, except jumps above 80 px. By default the server listens only on 127.0.0.1; for LAN play start it with `BULANCI_HOST=0.0.0.0`. Web: `dist/net.js`, `dist/ui/net-dialogs.js`; tests `test/net-server.test.mjs`, `test/net.test.mjs`; two-browser check `verify-network.mjs`.
 
 ## Update 31 Oct 2026: animation alpha plane and asset audit
 

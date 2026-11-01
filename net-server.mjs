@@ -85,7 +85,7 @@ export function attachNetServer(server,options={}) {
       case 'list':c.conn.send({t:'sessions',list:listing()});break;
       case 'host': {
         leave(c);if(sessions.size>=MAX_SESSIONS){c.conn.send({t:'error',text:'Příliš mnoho her.'});break;}
-        const name=typeof msg.name==='string'&&msg.name?msg.name.slice(0,40):'Hra',total=Number.isInteger(msg.total)?msg.total:2;
+        const name=typeof msg.name==='string'&&msg.name.trim()?msg.name.replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,40)||'Hra':'Hra',total=Number.isInteger(msg.total)?msg.total:2;
         const s={id:nextId++,name,total:Math.max(2,Math.min(MAX_PEERS,total)),peers:new Map(),started:false,next:1,touched:Date.now()};
         sessions.set(s.id,s);c.session=s;c.peer=0;s.peers.set(0,c);c.conn.send({t:'hosted',id:s.id,peer:0});break;
       }

@@ -13,6 +13,8 @@ async function type(page,text){await page.keyboard.type(text);}
 const host=await open('host'),guest=await open('guest',{1:[{name:'Uzlík',colorIndex:2,keys:0}]});
 // Start hry 1 (window 250,60): 2 players in total, 1 on this computer -> network host.
 await at(host,250+30+30,60+130+17+8);await at(host,250+30+30,60+248+8);await at(host,250+20+41,60+456+12);
+// Game name dialog (312x145, centred): Ok keeps the suggested name.
+await host.waitForTimeout(300);await at(host,244+73+41,227+100+12);
 await host.waitForTimeout(500);
 // Guest: Připojit se, Dále, session list, Připojit.
 await at(guest,250+30+30,60+45+17+8);await at(guest,250+20+41,60+456+12);
@@ -27,8 +29,10 @@ await host.waitForFunction(()=>window.bulanciGame&&!window.bulanciGame.over,null
 await guest.waitForTimeout(2500);
 const before=await host.evaluate(()=>window.bulanciGame.players.map(p=>[p.x,p.y,p.name]));
 const mirrorBefore=await guest.evaluate(()=>document.querySelector('#menu').hidden);
-await guest.keyboard.down('ArrowRight');await guest.waitForTimeout(900);await guest.keyboard.up('ArrowRight');
-await host.keyboard.down('ArrowLeft');await host.waitForTimeout(900);await host.keyboard.up('ArrowLeft');
+// A player can spawn against a map edge: walk away from it.
+const away=x=>x<400?'ArrowRight':'ArrowLeft',guestKey=away(before[1][0]),hostKey=away(before[0][0]);
+await guest.keyboard.down(guestKey);await guest.waitForTimeout(900);await guest.keyboard.up(guestKey);
+await host.keyboard.down(hostKey);await host.waitForTimeout(900);await host.keyboard.up(hostKey);
 await host.waitForTimeout(300);
 const after=await host.evaluate(()=>window.bulanciGame.players.map(p=>[p.x,p.y]));
 

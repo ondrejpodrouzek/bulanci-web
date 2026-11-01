@@ -44,3 +44,15 @@ test('a guest cannot forge the host: only peer 0 drives the mirror, bad directio
   const h=fakeNet(),game=new Game({mapData:blank,mode:'local',random:()=>.5}),host=hostGame(h,{game,owners:[0,1]});
   h.emit('input',{from:1,inputs:[{direction:'x',presses:0}]});assert.equal(host.input(1).direction,undefined);
 });
+
+test('a guest glides a mover between snapshots and jumps a long way',()=>{
+  const handlers={},net={on(k,f){handlers[k]=f;return()=>{};},post(){}};
+  const guest=guestGame(net,{start:{map:{},players:[],rules:{}}});
+  const send=(x,now)=>handlers.snap({from:0,s:{players:[{id:0,x,y:10}]}},now);
+  send(100,1000);assert.equal(guest.game.players[0].x,100);
+  send(110,1033);assert.equal(guest.game.players[0].x,100);
+  guest.smooth(1033+16.65);assert.ok(Math.abs(guest.game.players[0].x-105)<.1);
+  guest.smooth(1100);assert.equal(guest.game.players[0].x,110);
+  send(500,1133);assert.equal(guest.game.players[0].x,500);
+  guest.close();
+});

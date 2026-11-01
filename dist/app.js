@@ -21,7 +21,7 @@ import {scoreScreen} from './ui/score-screen.js';
 import {loadingDialog} from './ui/loading-dialog.js';
 import {exitScreen} from './ui/exit-screen.js';
 import {historyDialog} from './ui/history-dialog.js';
-import {sessionList} from './ui/net-dialogs.js';
+import {sessionList,gameNameDialog} from './ui/net-dialogs.js';
 import {connectNet,hostLobby,guestLobby,hostGame,guestGame,netURL} from './net.js';
 import {attachRemoteGame,remoteEvents} from './audio-bridge.js';
 import {createPhoneMenu} from './phone-ui.js';
@@ -145,7 +145,7 @@ function render(){display.begin();ctx.fillStyle='#000';ctx.fillRect(0,0,800,600)
  if(location.search.includes('debug')&&map){ctx.save();ctx.lineWidth=1;ctx.strokeStyle='rgba(255,40,40,.85)';for(const o of map.obstacles)ctx.strokeRect(o.x+.5,o.y+.5,o.w,o.h);if(game){ctx.strokeStyle='rgba(0,230,255,.95)';for(const p of game.players){if(p.dead>0)continue;const r={x:p.x-55/2+2,y:p.y-62+12+25,w:51,h:37};ctx.strokeRect(r.x+.5,r.y+.5,r.w,r.h);ctx.fillStyle='#ff0';ctx.fillRect(p.x-1,p.y-1,2,2);}}ctx.restore();}
 }
 function phoneHud(){const me=netPlay?.role==='guest'?Math.max(0,game.humans.findIndex(h=>h.peer===netPlay.net.peer)):0,p=game.players[me];if(!p)return;const left=Math.ceil(game.time);touch.updateHud({players:game.players,me,time:Number.isFinite(left)?`${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`:'∞',weapon:WEAPONS[p.weapon]?.name??'',ammo:p.reloading>0?'…':String(p.ammo[p.weapon]??0)});}
-function frame(now){touch.setActive(!!game&&!menu&&!paused&&!game.over);if(phoneMenu&&game&&!menu&&!game.over)phoneHud();const dt=Math.min(.1,(now-last)/1000||0);last=now;if(game?.mirror){if(!menu&&!game.over)netPlay?.guest?.sendInput(guestInput());}else if(game&&!menu&&!paused&&!game.over){acc+=dt;while(acc>=1/60){game.update(1/60,input());netPlay?.host?.afterUpdate();acc-=1/60;}}render();if(toastUntil&&now>toastUntil){$('#message').style.opacity=0;toastUntil=0;}requestAnimationFrame(frame);}
+function frame(now){touch.setActive(!!game&&!menu&&!paused&&!game.over);if(phoneMenu&&game&&!menu&&!game.over)phoneHud();const dt=Math.min(.1,(now-last)/1000||0);last=now;if(game?.mirror){if(!menu&&!game.over)netPlay?.guest?.sendInput(guestInput());netPlay?.guest?.smooth(now);}else if(game&&!menu&&!paused&&!game.over){acc+=dt;while(acc>=1/60){game.update(1/60,input());netPlay?.host?.afterUpdate();acc-=1/60;}}render();if(toastUntil&&now>toastUntil){$('#message').style.opacity=0;toastUntil=0;}requestAnimationFrame(frame);}
 $('#start').onclick=start;$('#start-text').onclick=start;$('#again').onclick=start;$('#resume').onclick=resume;$('#back').onclick=()=>{$('#result').hidden=true;$('#menu').hidden=false;menu=true;paused=true;showStartScreen();};$('#menu-button').onclick=()=>menu?resume():showMenu();
 $('#map-select').onchange=()=>{mapKey=$('#map-select').value;const first=maps[mapKey]?.layers[0];$('#map-thumb').src=first?.resource===310?'assets/disco.jpg':`assets/original/${first?.resource??103}.png`;$('#map-thumb').alt=maps[mapKey]?.name??'';};
 if(location.search.includes('debug')){globalThis.bulanciDisplay=display;globalThis.bulanciDialogs=dialogs;}
@@ -183,11 +183,12 @@ async function phoneLeave(){if(game?.over)return;const r=await phoneMenu?.pause(
 async function netFailed(text){if(!netPlay)return;closeNet();if(game&&!game.over)dropGame();if(phoneMenu){await phoneMenu.notice(text.replaceAll('\u0001',''));phoneMenu.home();}else await dialogs.open(msgDialog(text));showScreen1();}
 function lobbyView(list,chat,total){const mine=netPlay?.net.peer;netPlay?.win?.updateLobby(list.filter(p=>p.peer!==mine),chat,list.length===total);}
 async function hostGame_(total,local){
+  const gameName=await dialogs.open(gameNameDialog(`Hra: ${savedHumans(local)[0].name}`));if(gameName===null)return showScreen1();
   const net=connectNet();try{await net.ready;}catch(e){return netFailed(e.message);}
   const humans=savedHumans(local).map(h=>({...h}));
   netPlay={role:'host',net,humans};
   net.on('disconnect',()=>{if(netPlay?.net===net)netFailed('Spojení se serverem bylo přerušeno.');});
-  const made=Promise.race([net.once('hosted'),net.once('error'),net.once('disconnect')]);net.send({t:'host',name:humans[0].name,total});
+  const made=Promise.race([net.once('hosted'),net.once('error'),net.once('disconnect')]);net.send({t:'host',name:gameName,total});
   const answer=await made;if(answer.t==='error')return netFailed('\u0001'+answer.text);if(answer.t!=='hosted')return;
   netPlay.lobby=hostLobby(net,{total,locals:humans,onChange:(list,chat)=>lobbyView(list,chat,total)});
   netPlay.win=await startGame2({total,humans,rules:()=>rulesState,levelKey:$('#map-select').value,network:{role:'host',onSay:t=>netPlay?.lobby.say(t)},
