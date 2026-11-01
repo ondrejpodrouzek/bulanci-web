@@ -313,6 +313,9 @@ $('#sound').onclick=()=>{muted=!muted;$('#sound').textContent=muted?'Zvuk vypnut
 $('#history').onclick=()=>$('#about').showModal();$('#close-about').onclick=()=>$('#about').close();
 window.addEventListener('keydown',e=>{if($('#about').open)return;if(/^(SELECT|INPUT|BUTTON)$/.test(document.activeElement.tagName)&&menu)return;if(e.code==='Escape'){e.preventDefault();if(menu)resume();else if(netPlay)netPause();else pauseGame();return;}if(menu||game?.over)return;if(!activeKeyCodes().has(e.code))return;e.preventDefault();if(!keys.includes(e.code))keys.push(e.code);if(!e.repeat)localHumans().forEach((p,k)=>{if(KEYSETS[p.keys??0][5]!==e.code)return;if(netPlay?.role==='guest')netPlay.guest.weapon(k);else game.switchWeapon(p.id);});});window.addEventListener('keyup',e=>{const i=keys.indexOf(e.code);if(i>=0)keys.splice(i,1);});window.addEventListener('blur',()=>{clear();pauseGame();});document.addEventListener('visibilitychange',()=>{if(document.hidden){clear();pauseGame();}});
 $('#start-text').disabled=true;$('#start-text').textContent='NAČÍTÁM DATA…';const ready=load();requestAnimationFrame(frame);
+// The home-screen icon is original art, so it exists only in the player's imported data. iOS asks
+// for the icon outside the service worker, so the page hands it over as a data URL.
+fetch('assets/icon-180.png').then(r=>r.ok?r.blob():null).then(b=>b&&new Promise(ok=>{const f=new FileReader();f.onload=()=>ok(f.result);f.readAsDataURL(b);})).then(url=>{if(url)document.querySelector('link[rel="apple-touch-icon"]').href=url;}).catch(()=>{});
 // An invitation link goes straight to the room.
 {const url=new URL(location.href),code=url.searchParams.get('hra');if(code){url.searchParams.delete('hra');history.replaceState(null,'',url);ready.then(()=>openNet({code}));}}
 ready.then(()=>showStartScreen());
