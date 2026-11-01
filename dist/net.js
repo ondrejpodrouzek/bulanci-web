@@ -29,7 +29,7 @@ export function connectNet(url=netURL()) {
     list(){const p=Promise.race([net.once('sessions'),net.once('disconnect')]);net.send({t:'list'});return p.then(m=>m.list??[]);},
     close(){try{ws.close();}catch{}},
   };
-  net.ready=new Promise((ok,fail)=>{ws.onopen=()=>{net.open=true;ok(net);};ws.onerror=()=>fail(new Error('Nelze se připojit k serveru.'));});
+  net.ready=new Promise((ok,fail)=>{ws.onopen=()=>{net.open=true;ok(net);};ws.onerror=()=>fail(new Error('Hra po síti tady nejde, potřebuje běžící server. Hrajte na adrese svého serveru.'));});
   ws.onmessage=e=>{let m;try{m=JSON.parse(e.data);}catch{return;}
     if(m.t==='msg'&&m.data&&typeof m.data==='object')emit(m.data.kind,{...m.data,from:m.from});
     else{if(m.t==='hosted'||m.t==='joined'){net.peer=m.peer;net.sessionId=m.id;}emit(m.t,m);}};

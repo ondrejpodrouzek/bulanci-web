@@ -14,9 +14,8 @@ const host=await open('host'),guest=await open('guest',{1:[{name:'Uzlík',colorI
 // Start hry 1 (window 250,60): 2 players in total, 1 on this computer -> network host.
 await at(host,250+30+30,60+130+17+8);await at(host,250+30+30,60+248+8);await at(host,250+20+41,60+456+12);
 await host.waitForTimeout(500);
-// Guest: Připojit se, Dále, address dialog Ok (empty = this server), session list, Připojit.
+// Guest: Připojit se, Dále, session list, Připojit.
 await at(guest,250+30+30,60+45+17+8);await at(guest,250+20+41,60+456+12);
-await at(guest,244+73+41,220+115+12);
 await guest.waitForTimeout(1500);
 await at(guest,232+20+40,178+50+4+7);await at(guest,232+83+41,178+200+12);
 await guest.waitForTimeout(1000);

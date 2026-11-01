@@ -21,7 +21,7 @@ import {scoreScreen} from './ui/score-screen.js';
 import {loadingDialog} from './ui/loading-dialog.js';
 import {exitScreen} from './ui/exit-screen.js';
 import {historyDialog} from './ui/history-dialog.js';
-import {tcpipDialog,sessionList} from './ui/net-dialogs.js';
+import {sessionList} from './ui/net-dialogs.js';
 import {connectNet,hostLobby,guestLobby,hostGame,guestGame,netURL} from './net.js';
 import {attachRemoteGame,remoteEvents} from './audio-bridge.js';
 import {createPhoneMenu} from './phone-ui.js';
@@ -211,9 +211,9 @@ async function hostGame_(total,local){
   await dialogs.show(netPlay.win);
 }
 async function joinGame(local){
-  const target=await dialogs.open(tcpipDialog(''));if(!target)return showScreen1();
-  const address=target.address,secure=location.protocol==='https:',url=address?`${secure?'wss':'ws'}://${address.includes(':')||secure?address:address+':4173'}/net`:netURL();
-  const net=connectNet(url);try{await net.ready;}catch(e){return netFailed(e.message);}
+  // The original asked for a computer's address here. The web has one server, the one that
+  // serves the page, so the list of its games opens straight away.
+  const net=connectNet();try{await net.ready;}catch(e){return netFailed(e.message);}
   netPlay={role:'guest',net,humans:savedHumans(local).map(h=>({...h}))};
   net.on('closed',()=>{if(netPlay?.net===net)netFailed('Někdo z hráčů opustil hru.');});
   net.on('disconnect',()=>{if(netPlay?.net===net)netFailed('Spojení se serverem bylo přerušeno.');});
