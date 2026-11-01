@@ -67,3 +67,10 @@ test('swept projectile collisions stop at the nearest contact even for a subpixe
   const {g,n,p}=isolated();n.active=false;Object.assign(p,{x:500,y:250});g.map.obstacles=[{x:399.7,y:200,w:.1,h:100}];
   g.bullets=[{x:390,y:250,vx:800,vy:0,owner:32,life:1,type:4}];g.update(.05);assert.equal(g.bullets.length,0);assert.equal(p.deaths,0);
 });
+
+test('a returning undead announces itself, so its voice plays',async()=>{
+  const {Game}=await import('../dist/engine.js');
+  const events=[],g=new Game({mapData:{name:'x',source_resource:324,layers:[],obstacles:[],npcs:4},mode:'training',random:()=>.9,onEvent:e=>events.push(e)});
+  const n=g.npcs[0];n.dead=.01;n.deathElapsed=0;g.update(.05,[{}]);
+  assert.ok(events.some(e=>e.type==='spawn'&&e.player===n));
+});

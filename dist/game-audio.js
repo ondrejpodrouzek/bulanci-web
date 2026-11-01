@@ -174,8 +174,9 @@ export class GameAudio extends EventTarget {
 
   preloadEffects() {
     if (!this.catalog || !this.context) return;
-    // Load the original shared bank; maps' additional banks stay lazy.
-    for (const sample of Object.values(this.catalog.samples)) if (sample.bank === 4) {
+    // All banks: a clip heard for the first time on a phone can miss the 700 ms limit of playSample
+    // while the level's music decodes, and the undead fire from bank 3.
+    for (const sample of Object.values(this.catalog.samples)) {
       this.buffer(sample.bank, sample.sample).catch(error => this.report(error));
     }
   }

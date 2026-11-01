@@ -69,7 +69,8 @@ document.addEventListener('bulanci:quit',()=>{
 window.addEventListener('pagehide',()=>gameAudio.setHidden(true));
 window.addEventListener('pageshow',()=>{gameAudio.setHidden(document.hidden);syncScene();});
 function gesture() {
-  if (!gameAudio.unlocked || gameAudio.context?.state==='suspended') gameAudio.unlock();
+  // iOS reports 'interrupted' after a call or the lock screen; only a gesture brings it back.
+  if (!gameAudio.unlocked || ['suspended','interrupted'].includes(gameAudio.context?.state)) gameAudio.unlock();
   else if (gameAudio.settings.enabled && gameAudio.tracks.get(gameAudio.musicID)?.paused) gameAudio.playCurrentMusic();
 }
 // iOS grants audio only in touchend/click, never in pointerdown or touchstart.
