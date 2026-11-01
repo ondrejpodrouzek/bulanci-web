@@ -6,7 +6,7 @@
 // (0x423130); first and previous are disabled on page 1, next and last on the last page.
 // CIcon draw 0x403e40: image 0 normally (alpha 0x80 when disabled), 1 under the pointer,
 // 2 while pressed.
-import {StaticText,Window,bitmap} from './widgets.js';
+import {StaticText,Window,bitmap,uiSound} from './widgets.js';
 
 const ICONS=[[0xe5,0x27,[56,55,57]],[0xe6,0x38,[59,58,60]],[0xe7,0x48,[62,61,63]],[0xe8,0x5b,[65,64,66]]];
 const ready=im=>im.complete&&im.naturalWidth>0;
@@ -20,7 +20,7 @@ class Icon {
     const prev=ctx.globalAlpha;if(this.disabled)ctx.globalAlpha=prev*0x80/255;ctx.drawImage(im,o.x+this.x,o.y+this.y);ctx.globalAlpha=prev;
   }
   pointerDown(){this.pressed=true;}
-  pointerUp(inside){this.pressed=false;if(inside)this.onClick();}
+  pointerUp(inside){this.pressed=false;if(inside){if(!this.disabled)uiSound(20);this.onClick();}}
 }
 
 // Page object 0x34 (0x4236a0): a photograph (bitmap resource) that plays a t76 film in place.

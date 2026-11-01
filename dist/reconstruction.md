@@ -292,13 +292,13 @@ Web: `dist/hud.js`; tests `test/hud.test.mjs`. Approximations: the reload bar us
 
 Assets are verified against the EXE. All resources the web did not use are now identified:
 
-- Bitmaps 132, 143 and 146 are parts of the vertical scrollbar of `CListBox` (table `0x4ae5a0`: up 142/138/146, thumb 132/130/134, down 139/135/143, used by `0x408370`). The web's list has no scrollbar, so entries past its height are not reachable.
+- Bitmaps 132, 143 and 146 are parts of the vertical scrollbar of `CListBox` (table `0x4ae5a0`, used by `0x408370`). The web list now scrolls with arrows, track and keyboard; thumb dragging, hover states and the bar's exact position are not ported.
 - Bitmap 74 has no reference in the code, the data tables or any script: it is unused in the original too.
 
 Logic audit by area:
 
 - Death: done, see above. Pointer and HUD: done, see above.
-- Sound calls: the EXE plays samples from 24 call sites of `0x422430`. In-game ones match the web. The interface is silent in the web, while the original plays sample 14 on a radio change (`0x402fb0`), sample 20 on a `CIcon` click (`0x403ea0`) and a per-widget sample on commands (`0x4030b0`, field `+0x94`, set by each dialog). Not ported yet.
+- Sound calls: done. In-game sounds match the 24 call sites of `0x422430`. Interface sounds are in: `CButton` sample 0 on press (default of field `+0x94`, `0x4030e0`, `0x403ffa`), `CRadio` 14 (`0x402fb0`), `CIcon` 20 (`0x403ea0`).
 - Hits and deaths: done. Found and fixed:
   - The `kill` event was never sent: a comment had swallowed the call, so no death sound or line played.
   - A lying body is solid. `CDeath` takes over the character's rectangle with `+0x69` set (`0x41c82b`), and `0x418300` tests every such object, so it stops shots and walkers and blocks spawn places.

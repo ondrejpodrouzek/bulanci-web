@@ -12,7 +12,7 @@ export function createDialogLayer(frame) {
   const input=document.createElement('input');input.className='dialog-input';input.autocomplete='off';input.hidden=true;frame.append(input);
   const display=createDisplay(canvas),ctx=display.ctx;
   const stack=[];let raf=0,suspended=false;
-  const ready=Promise.all([loadFont(174),loadFont(175),loadFont(176),loadSpriteManifest(),preloadBitmaps([19,27,30,31,32,113,114,115,119,120,121,122,123,125,126,127,129,131,133])]);
+  const ready=Promise.all([loadFont(174),loadFont(175),loadFont(176),loadSpriteManifest(),preloadBitmaps([132,139,142,19,27,30,31,32,113,114,115,119,120,121,122,123,125,126,127,129,131,133])]);
   // While suspended (a web panel such as the volume popup covers the screen) the layer is hidden
   // and takes no input.
   const top=()=>suspended?null:stack.at(-1)?.win??null;

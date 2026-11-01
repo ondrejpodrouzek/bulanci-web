@@ -6,6 +6,9 @@ const images=new Map();
 export function bitmap(id){let im=images.get(id);if(!im){im=new Image();im.src=`assets/original/ui/${id}.png`;images.set(id,im);}return im;}
 export const preloadBitmaps=ids=>Promise.all(ids.map(id=>{const im=bitmap(id);return im.complete?null:new Promise(r=>{im.onload=im.onerror=r;});}));
 const ready=im=>im.complete&&im.naturalWidth>0;
+// Samples of the global bank: CButton 0 (field +0x94, 0x4030e0), CRadio 14 (0x402fb0), CIcon 20 (0x403ea0).
+export let uiSound=()=>{};
+export const setUiSound=play=>{uiSound=play;};
 
 // 0x402f40: drawing opacity by widget state - disabled 0x30, focused 0x90, otherwise 0x85.
 export const stateAlpha=w=>(w.disabled?0x30:w.focused?0x90:0x85)/255;
@@ -44,9 +47,9 @@ export class Button extends Widget {
     const d=this.pressed?1:0;
     drawText(ctx,this.font,this.text,{x:o.x+this.x+d,y:o.y+this.y+d,w:this.w,h:this.h},{flags:5,spacing:this.spacing,alpha});
   }
-  pointerDown(){if(!this.disabled)this.pressed=true;}
+  pointerDown(){if(!this.disabled){this.pressed=true;uiSound(0);}}
   pointerUp(inside){const was=this.pressed;this.pressed=false;if(was&&inside&&!this.disabled)this.onClick?.();}
-  key(e){if(e.code==='Enter'||e.code==='Space'||e.code==='NumpadEnter'){this.onClick?.();return true;}return false;}
+  key(e){if(e.code==='Enter'||e.code==='Space'||e.code==='NumpadEnter'){uiSound(0);this.onClick?.();return true;}return false;}
 }
 
 // CRadio 0x408540 / draw 0x403ac0: bitmaps 121 / 119 (focus) / 122 (selected) / 120
@@ -65,7 +68,7 @@ export class Radio extends Widget {
     });
   }
   pick(i){if(i>=0&&i<this.items.length&&!this.disabledItems.includes(i)){this.selected=i;this.cursor=i;this.onChange?.(i);}}
-  pointerDown(px,py){this.pick(Math.floor((py-this.y)/17));}
+  pointerDown(px,py){const i=Math.floor((py-this.y)/17);if(i>=0&&i<this.items.length&&!this.disabledItems.includes(i))uiSound(14);this.pick(i);}
   key(e){
     this.cursor??=this.selected;
     if(e.code==='ArrowDown'||e.code==='ArrowRight'){this.pick(Math.min(this.items.length-1,this.cursor+1));return true;}
@@ -157,20 +160,42 @@ function sunkenOutline(ctx,r,alpha){const prev=ctx.globalAlpha;ctx.globalAlpha=p
 
 // CListBox / CLevelList (0x4057c0, 0x406d00, item 0x40d490): frame without fill, items in
 // font 175 with the 1-based number, unselected items at opacity 0x85, the chosen one full.
+// CListBox with the vertical CScrollBar (table 0x4ae5a0: up 142/138/146, thumb 132/130/134, down
+// 139/135/143) once the items no longer fit. The bar's exact placement is not verified.
+const BAR_W=13,ARROW_H=12;
 export class ListBox extends Widget {
-  constructor(p){super({focusable:true,font:175,itemHeight:15,selected:0,...p});}
+  constructor(p){super({focusable:true,font:175,itemHeight:15,selected:0,top:0,...p});}
+  get rows(){return Math.max(1,Math.floor((this.h-7)/this.itemHeight));}
+  get scrolls(){return this.items.length>this.rows;}
+  get maxTop(){return Math.max(0,this.items.length-this.rows);}
+  scrollTo(top){this.top=Math.max(0,Math.min(this.maxTop,top));}
+  reveal(i){if(i<this.top)this.scrollTo(i);else if(i>=this.top+this.rows)this.scrollTo(i-this.rows+1);}
+  thumbY(track){return this.maxTop?Math.round(this.top*track/this.maxTop):0;}
   draw(ctx,o) {
     if(!this.visible)return;
-    const r={x:o.x+this.x,y:o.y+this.y,w:this.w,h:this.h};sunkenFrame(ctx,r,stateAlpha(this),-1);
-    this.items.forEach((text,i)=>{
-      const y=r.y+4+i*this.itemHeight;if(y+this.itemHeight>r.y+r.h-3)return;
-      const alpha=i===this.selected?1:0x85/255;
+    const r={x:o.x+this.x,y:o.y+this.y,w:this.w,h:this.h},width=this.scrolls?r.w-BAR_W-2:r.w;sunkenFrame(ctx,r,stateAlpha(this),-1);
+    this.scrollTo(this.top);
+    this.items.slice(this.top,this.top+this.rows).forEach((text,k)=>{
+      const i=k+this.top,y=r.y+4+k*this.itemHeight,alpha=i===this.selected?1:0x85/255;
       drawText(ctx,this.font,String(i+1),{x:r.x+6,y,w:16,h:this.itemHeight},{flags:4,alpha});
-      drawText(ctx,this.font,text,{x:r.x+27,y,w:r.w-32,h:this.itemHeight},{flags:4,alpha});
+      drawText(ctx,this.font,text,{x:r.x+27,y,w:width-32,h:this.itemHeight},{flags:4,alpha});
     });
+    if(!this.scrolls)return;
+    const x=r.x+r.w-BAR_W-1,put=(id,y)=>{const im=bitmap(id);if(ready(im))ctx.drawImage(im,x,y);};
+    put(142,r.y+1);put(139,r.y+r.h-ARROW_H-1);
+    put(132,r.y+1+ARROW_H+this.thumbY(r.h-2*ARROW_H-8));
   }
-  pick(i){if(i>=0&&i<this.items.length){this.selected=i;this.onChange?.(i);}}
-  pointerDown(px,py){this.pick(Math.floor((py-this.y-4)/this.itemHeight));}
+  pick(i){if(i>=0&&i<this.items.length){this.selected=i;this.reveal(i);this.onChange?.(i);}}
+  pointerDown(px,py) {
+    const y=py-this.y;
+    if(this.scrolls&&px-this.x>=this.w-BAR_W-1){
+      if(y<=ARROW_H)this.scrollTo(this.top-1);
+      else if(y>=this.h-ARROW_H-1)this.scrollTo(this.top+1);
+      else this.scrollTo(y<ARROW_H+this.thumbY(this.h-2*ARROW_H-8)?this.top-this.rows:this.top+this.rows);
+      return;
+    }
+    this.pick(this.top+Math.floor((y-4)/this.itemHeight));
+  }
   key(e){if(e.code==='ArrowDown'){this.pick(Math.min(this.items.length-1,this.selected+1));return true;}if(e.code==='ArrowUp'){this.pick(Math.max(0,this.selected-1));return true;}return false;}
 }
 
