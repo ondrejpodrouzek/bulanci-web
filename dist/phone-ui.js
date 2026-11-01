@@ -10,7 +10,7 @@ const button=(cls,text,onClick)=>{const b=el('button',cls,text);b.type='button';
 const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
 const iosBrowser=()=>/iPhone|iPad|iPod/.test(navigator.userAgent);
 
-export function createPhoneMenu({root,colors,thumb,onPlay,onNetwork,onHistory,onBack}) {
+export function createPhoneMenu({root,colors,thumb,bots,onBots,onPlay,onNetwork,onHistory,onBack}) {
   const player={name:'Bulík',colorIndex:0,...load()};
   let level='malaria',original=false,visible=true,closeSheet=null;
   const menu=el('section','phone-menu');menu.id='phone-menu';
@@ -19,10 +19,13 @@ export function createPhoneMenu({root,colors,thumb,onPlay,onNetwork,onHistory,on
   const name=el('input','phone-name');Object.assign(name,{value:player.name,maxLength:16,autocomplete:'off',enterKeyHint:'done'});name.setAttribute('aria-label','Jméno hráče');
   const swatches=el('div','phone-colors');
   const play=button('phone-play','Načítám…',()=>{player.name=name.value.trim()||'Bulík';save(player);onPlay({level,human:{name:player.name,colorIndex:player.colorIndex,keys:0}});});play.disabled=true;
+  const foes=el('div','phone-foes');foes.setAttribute('role','radiogroup');foes.setAttribute('aria-label','Soupeři v tréninku');foes.append(el('span','','Soupeři'));
+  const paintFoes=()=>{for(const b of foes.querySelectorAll('button'))b.setAttribute('aria-pressed',String(b.dataset.mode===bots()));};
+  for(const [mode,label] of [['original','Stojí'],['walk','Chodí'],['hunt','Loví']]){const b=button('',label,()=>{onBots(mode);paintFoes();});b.dataset.mode=mode;foes.append(b);}
   const tools=el('nav','phone-tools');
   tools.append(button('', 'Hra po síti',()=>{player.name=name.value.trim()||'Bulík';save(player);onNetwork();}),button('','Historie',()=>{setOriginal(true);onHistory();}),button('','Zvuk',()=>sound()));
   const tip=el('p','phone-tip','Celá obrazovka: Sdílet → Přidat na plochu');tip.hidden=!iosBrowser()||standalone();
-  const side=el('div','phone-side');const who=el('div','phone-who');who.append(name,swatches);side.append(who,play,tools,tip);
+  const side=el('div','phone-side');const who=el('div','phone-who');who.append(name,swatches);side.append(who,foes,play,tools,tip);paintFoes();
   menu.append(head,levels,side);
   const back=button('phone-back','‹ Zpět',()=>{setOriginal(false);onBack();});back.hidden=true;
   const sheet=el('section','phone-sheet');sheet.hidden=true;

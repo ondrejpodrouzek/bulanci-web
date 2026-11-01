@@ -1,6 +1,6 @@
 // Training opponents: computer CBulanek ids 0x7d..0x7f, created only when one human plays
 // (0x4205a0, config+0xd8 == 1). Recovered from the supplied EXE; evidence in reconstruction.md.
-import {sensorMasks,sensorTargets,sensorSees} from './exitus.js';
+import {sensorMasks,sensorTargets,sensorSees,visibleTarget} from './exitus.js';
 import {playerRect,canPlaceActor,BODY_WIDTH as BODY_W} from './collision.js';
 
 // 0x41f805: on respawn a computer (id > 3) re-arms with type (rand*101>>15 < 10), i.e. the
@@ -29,7 +29,7 @@ export function teleport(game,p,to=null) {
   return true;
 }
 // 0x421579: when a computer's weapon animation ends, 40 of 100 times it teleports away.
-export function trainingWeaponEnded(game,p){if(p.bot&&Math.floor(game.random()*100)<40)teleport(game,p);}
+export function trainingWeaponEnded(game,p){if(p.bot&&game.botMode==='original'&&Math.floor(game.random()*100)<40)teleport(game,p);}
 
 // Computers have no wander timer (timer4 is NPC-only, 0x420bf6) and never walk. Four sensors
 // (ctor 0x41e690) reach the battlefield edges. A human entering one (message 0x421047) turns
@@ -60,4 +60,29 @@ export function updateTrainingBot(game,p) {
   }
   // 0x4208c0: the shot goes off only if the weapon is idle at that moment.
   if(p.fireAt!=null&&game.elapsed+1e-9>=p.fireAt){p.fireAt=null;game.shoot(p);}
+}
+
+// Web addition, not in the EXE: the training can have walking opponents. 'original' is the code
+// above. 'walk' moves like the Exitus undead, with their random turns; 'hunt' also heads for the
+// nearest player and shoots sooner. Both aim with the same sensors and do not teleport.
+export const BOT_MODES=['original','walk','hunt'];
+const AIM={walk:{delay:()=>0,repeat:1.5},hunt:{delay:()=>.25,repeat:.9}};
+function nextTurn(game,p){p.turnAt=game.elapsed+1+game.random()*(p.turnSpan??3);}
+function headFor(game,p) {
+  const prey=sensorTargets(game).filter(q=>q.dead<=0&&q.active!==false).sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
+  if(!prey||game.random()<.25)return Math.floor(game.random()*4);
+  const dx=prey.x-p.x,dy=prey.y-p.y;
+  return Math.abs(dx)>Math.abs(dy)?(dx<0?0:1):(dy<0?2:3);
+}
+export function updateWalkingBot(game,p,dt) {
+  const hunt=game.botMode==='hunt',aim=AIM[game.botMode];
+  p.turnAt??=0;
+  if(p.motionBlocked||game.elapsed>=p.turnAt){game.face(p,hunt?headFor(game,p):Math.floor(game.random()*4));nextTurn(game,p);p.motionBlocked=false;}
+  const seen=visibleTarget(game,p);
+  if(seen) {
+    if(p.direction!==seen.direction)game.face(p,seen.direction);
+    p.fireAt??=game.elapsed+(hunt?aim.delay():Math.floor(game.random()*4)*.5);
+    if(game.elapsed+1e-9>=p.fireAt){game.shoot(p);p.fireAt=game.elapsed+aim.repeat;}
+  } else p.fireAt=null;
+  game.move(p,{direction:p.direction},dt);
 }

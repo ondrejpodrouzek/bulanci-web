@@ -54,6 +54,8 @@ html.touch-device #message{top:50px;font-size:13px}
 .phone-colors{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:3px}
 .phone-swatch{flex:none;width:34px;height:34px;padding:0;border-radius:50%;border:2px solid #0006}.phone-swatch[aria-pressed="true"]{outline:3px solid #fff;outline-offset:1px}
 .phone-play,.phone-primary{min-height:52px;border:0;border-radius:12px;background:linear-gradient(#ffd976,#d99a2e);color:#201400;font:700 18px -apple-system,system-ui,Tahoma,sans-serif}.phone-play:disabled{opacity:.5}
+.phone-foes{display:grid;grid-template-columns:auto repeat(3,1fr);align-items:center;gap:6px;font-size:14px}.phone-foes span{padding-right:4px;color:#bbb}
+.phone-foes button{min-height:38px;padding:0 4px;border:1px solid #fff3;border-radius:10px;background:#0009;color:#eee;font:14px -apple-system,system-ui,Tahoma,sans-serif}.phone-foes button[aria-pressed="true"]{border-color:#ffd976;color:#ffd976}
 .phone-tools{position:static;left:auto;top:auto;width:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .phone-tools button,.phone-back{min-height:44px;padding:0 6px;border:1px solid #fff3;border-radius:10px;background:#0009;color:#eee;font:14px -apple-system,system-ui,Tahoma,sans-serif}
 .phone-tip{margin:0;text-align:center;font-size:12px;color:#9a9a9a}
@@ -64,6 +66,7 @@ html.touch-device #message{top:50px;font-size:13px}
  .phone-levels{grid-template-columns:repeat(3,1fr)}
  .phone-side{justify-content:center;gap:8px}
  .phone-tip{display:none}
+ .phone-colors{flex-wrap:nowrap;gap:4px}.phone-swatch{flex:1 1 0;min-width:0;width:auto;height:auto;aspect-ratio:1}
 }
 
 /* Sheets: pause, sound, result */

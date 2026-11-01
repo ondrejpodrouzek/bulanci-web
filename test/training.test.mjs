@@ -112,3 +112,18 @@ test('a dying computer does not teleport',()=>{
  const g=training(()=>0),bot=g.players[1];g.players[0].x=-1000;bot.teleportAt=1e9;bot.cooldown=0;g.shoot(bot);
  let tp=0;g.onEvent=e=>{if(e.type==='teleport')tp++;};g.kill(bot,0);assert.equal(tp,0);
 });
+
+test('walking opponents walk, never teleport, and hunters come closer',async()=>{
+  const {Game}=await import('../dist/engine.js');
+  const map={name:'Test',layers:[],obstacles:[]};
+  let i=0;const random=()=>(i=(i*16807+11)%2147483647)/2147483647;
+  for(const bots of ['walk','hunt']){
+    const events=[],g=new Game({mapData:map,mode:'training',random,bots,onEvent:e=>events.push(e)});
+    const start=g.players.slice(1).map(p=>[p.x,p.y]);
+    g.players[0].effects={invisible:0};for(let t=0;t<600;t++)g.update(1/60,[{}]);
+    assert.ok(g.players.slice(1).some((p,k)=>p.dead>0||p.x!==start[k][0]||p.y!==start[k][1]),`${bots}: they move`);
+    assert.equal(events.filter(e=>e.type==='teleport').length,0,`${bots}: no teleports`);
+  }
+  const g=new Game({mapData:map,mode:'training',random,bots:'original'});assert.equal(g.botMode,'original');
+  assert.equal(new Game({mapData:map,mode:'training',random,bots:'nesmysl'}).botMode,'original');
+});

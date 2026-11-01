@@ -25,6 +25,12 @@ npm start        # http://127.0.0.1:4173
 Open the address and select `bulanci.exe` v1.80, or the `.zip` it comes in, or agree to download it. It takes about half a minute and is needed only
 once, unless you clear your browser data. The game's interface is in Czech, like the original.
 
+## Training opponents
+
+The training has a Soupeři setting. Stojí is the original: they stand and teleport. Chodí and Loví
+are additions that are not in the EXE: the opponents walk like the Exitus undead, and in Loví they
+also head for you and shoot sooner.
+
 ## Network play
 
 The host creates a game under Hra po síti and sends the link or reads out the four-character code.

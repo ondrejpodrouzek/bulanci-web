@@ -7,7 +7,7 @@ import {blocksActors,blocksShots,clipActorAxis,canPlaceActor,segmentRectTime} fr
 import {actorLayout,bodyResource,actorAnchor,deathChoice,deathSeconds} from './actor-frames.js';
 import {isExitus,prepareExitus,updateUndead,resetWander} from './exitus.js';
 import {isBedtime,prepareBedtime,createCreatures,updateCreatures,creatureVulnerable,hitCreature} from './bedtime.js';
-import {updateTrainingBot,trainingRespawnWeapon,trainingWeaponEnded,armTeleport,TELEPORT_MS} from './training.js';
+import {updateTrainingBot,updateWalkingBot,BOT_MODES,trainingRespawnWeapon,trainingWeaponEnded,armTeleport,TELEPORT_MS} from './training.js';
 import {createPowerups,updatePowerups,hasEffect} from './powerups.js';
 import {isEightBit,prepareEightBit,createEightBit,updateEightBit,eightBitShotHit} from './eightbit.js';
 import {teleporting} from './training.js';
@@ -55,7 +55,7 @@ export const DIRECTIONS=[[-1,0],[1,0],[0,-1],[0,1]];
 // Native muzzle vectors are relative to the union of body and attached weapon bounds.
 export function muzzlePoint(x,y,direction,type,actor={}){const m=WEAPONS[type].muzzle?.[direction];if(!m)return{x,y};const layout=actorLayout({...actor,x,y,direction,weapon:type},type,direction);return{x:layout.originX+m[0],y:layout.originY+m[1]};}
 export class Game{
- constructor({mapData,mode='training',humans,duration,gameType,limit,weapons='classic',random=Math.random,onEvent=()=>{}}){this.map=prepareEightBit(prepareBedtime(prepareExitus(mapData,random),random));mapData=this.map;this.npcs=[];this.mode=mode;this.weaponMode=mode==='training'||weapons!=='shotgun'?'classic':'shotgun'; // training forces all weapons (0x4136f9)
+ constructor({mapData,mode='training',humans,duration,gameType,limit,weapons='classic',bots='original',random=Math.random,onEvent=()=>{}}){this.botMode=BOT_MODES.includes(bots)?bots:'original';this.map=prepareEightBit(prepareBedtime(prepareExitus(mapData,random),random));mapData=this.map;this.npcs=[];this.mode=mode;this.weaponMode=mode==='training'||weapons!=='shotgun'?'classic':'shotgun'; // training forces all weapons (0x4136f9)
   this.random=random;this.onEvent=onEvent;this.rules=resolveRules({mode,gameType:gameType??'time',limit:limit??duration});this.time=this.rules.type==='time'?this.rules.limit:Infinity;this.elapsed=0;this.over=false;this.bullets=[];this.pickups=[];this.mines=[];this.explosions=[];this.pending=[];this.pipes=(mapData&&mapData.source_resource===PIPE_NETWORK.source_resource)?PIPE_NETWORK.pipes:[];this.teleports=[];this.creatures=isEightBit(this.map)?createEightBit(this):createCreatures(this);this.powerups=createPowerups(this);this.sceneAnims=createSceneAnims(this);this.humans=humans??defaultHumans(mode==='training'?1:2);
   // Computers (ids > 3) get a random colour (0x41e7f0); training adds three of them.
   this.players=Array.from({length:mode==='training'?4:this.humans.length},(_,id)=>{const h=this.humans[id],colorIndex=h?h.colorIndex:Math.floor(random()*8);return {id,bot:!h,spawned:false,speedPercent:100,name:h?h.name:'Soupeř '+id,colorIndex,keys:h?.keys,color:colorCss(colorIndex),x:0,y:0,direction:3,dead:0,score:0,kills:0,deaths:0,weapon:0,ammo:[5,0,0,0,0,0],cooldown:0,reloading:0,moving:false,walk:0,think:random()*2,deathElapsed:0};});for(const p of this.players)this.spawn(p);refreshScores(this);
@@ -189,7 +189,7 @@ export class Game{
    // 0x4121a0 compares this and the previous DirectInput key state: fire (command 4) is sent only
    // on the press edge, and 0x4208c0 fires only if the weapon is idle at that moment. Holding the
    // key does not repeat.
-   if(input.fire&&!p.fireHeld)this.shoot(p);p.fireHeld=!!input.fire;}else updateTrainingBot(this,p);}
+   if(input.fire&&!p.fireHeld)this.shoot(p);p.fireHeld=!!input.fire;}else if(this.botMode==='original')updateTrainingBot(this,p);else updateWalkingBot(this,p,dt);}
   // Events belong to a particular live weapon animation. Turning/switching invalidates it.
   this.pending.sort((a,b)=>a.at-b.at);
   while(this.pending.length&&this.pending[0].at<=this.elapsed+1e-9){const event=this.pending.shift();

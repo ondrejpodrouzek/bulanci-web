@@ -32,9 +32,10 @@ setUiSound(sample=>globalThis.bulanciAudio?.playSample(4,sample,{whilePaused:tru
 createGunMouse($('#game-frame'),loadSpriteManifest(),()=>!$('#menu').hidden||!$('#dialog-layer').hidden);
 let maps={},manifest={resources:{}},game=null,paused=false,menu=true,mapKey='malaria',last=0,acc=0,muted=true,loading=true,toastUntil=0;
 const keys=[],images=new Map(),bitmaps=new Map(),sounds=['0-0.wav','0-1.wav','0-0.wav'].map(file=>new Audio('assets/original/audio/'+file));
+let botMode=(()=>{try{return localStorage.getItem('bulanci.bots')||'original';}catch{return 'original';}})();
 const touch=createTouchControls({frame:$('#game-frame'),onWeapon:()=>{if(netPlay?.role==='guest')netPlay.guest.weapon(0);else game?.switchWeapon(0);},onMenu:()=>netPlay?netPause():pauseGame()});
 // Phones get their own menu and sheets (phone-ui.js); the game stays the same.
-const phoneMenu=touch.isMobile()?createPhoneMenu({root:document.body,colors:PLAYER_COLORS.map((_,i)=>colorCss(i)),thumb:map=>layerSrc(map.layers[0]),
+const phoneMenu=touch.isMobile()?createPhoneMenu({root:document.body,bots:()=>botMode,onBots:mode=>setBotMode(mode),colors:PLAYER_COLORS.map((_,i)=>colorCss(i)),thumb:map=>layerSrc(map.layers[0]),
   onPlay:({level,human})=>{$('#map-select').value=level;$('#map-select').dispatchEvent(new Event('change'));$('#mode').value='training';$('#mode').dispatchEvent(new Event('change'));customHumans=[human];start().finally(()=>{customHumans=null;});},
   onNetwork:()=>openNet(),onHistory:()=>showHistory(),onBack:()=>document.dispatchEvent(new CustomEvent('bulanci:menu-view',{detail:'start'}))}):null;
 if(phoneMenu)new MutationObserver(()=>phoneMenu.setVisible(!$('#menu').hidden)).observe($('#menu'),{attributes:true,attributeFilter:['hidden']});
@@ -65,7 +66,8 @@ async function showScore(ended){
   $('#result').hidden=true;$('#menu').hidden=false;$('#resume').hidden=true;menu=true;paused=true;showStartScreen();
 }
 let customHumans=null,scoreDismiss=null;
-async function start(){try{if(loading)await ready;dialogs.hide();if(!maps[$('#map-select').value])throw Error('Data mapy nejsou dostupná');mapKey=$('#map-select').value;const next=new Game({mapData:maps[mapKey],mode:$('#mode').value==='training'?'training':'local',humans:customHumans??defaultHumans($('#mode').value==='training'?1:$('#mode').value==='local3'?3:2),gameType:rulesState.type,limit:rulesState.limits[rulesState.type],weapons:rulesState.weapons,onEvent});await loadLevel(maps[mapKey],next.players);game=next;if(netPlay?.role==='host')netPlay.begin(game);if(location.search.includes('debug'))globalThis.bulanciGame=game;paused=false;menu=false;clear();acc=0;$('#menu').hidden=true;$('#result').hidden=true;$('#resume').hidden=false;canvas.focus();touch.setActive(true);if(phoneMenu)message(touch.isMobile()?'Palec vlevo: pohyb · vpravo: střelba':(game.humans.length>1?'S F E D / J L I K / Num 4 6 8 5: pohyb · A / M / Num 0: střelba · Q / N / Num 1: zbraň':'Šipky: pohyb · mezerník: střelba · C: zbraň'));}catch(e){console.error(e);message('Spuštění se nezdařilo: '+e.message);}}
+const setBotMode=mode=>{botMode=mode;try{localStorage.setItem('bulanci.bots',mode);}catch{}};
+async function start(){try{if(loading)await ready;dialogs.hide();if(!maps[$('#map-select').value])throw Error('Data mapy nejsou dostupná');mapKey=$('#map-select').value;const next=new Game({mapData:maps[mapKey],mode:$('#mode').value==='training'?'training':'local',humans:customHumans??defaultHumans($('#mode').value==='training'?1:$('#mode').value==='local3'?3:2),gameType:rulesState.type,limit:rulesState.limits[rulesState.type],weapons:rulesState.weapons,bots:botMode,onEvent});await loadLevel(maps[mapKey],next.players);game=next;if(netPlay?.role==='host')netPlay.begin(game);if(location.search.includes('debug'))globalThis.bulanciGame=game;paused=false;menu=false;clear();acc=0;$('#menu').hidden=true;$('#result').hidden=true;$('#resume').hidden=false;canvas.focus();touch.setActive(true);if(phoneMenu)message(touch.isMobile()?'Palec vlevo: pohyb · vpravo: střelba':(game.humans.length>1?'S F E D / J L I K / Num 4 6 8 5: pohyb · A / M / Num 0: střelba · Q / N / Num 1: zbraň':'Šipky: pohyb · mezerník: střelba · C: zbraň'));}catch(e){console.error(e);message('Spuštění se nezdařilo: '+e.message);}}
 function direction(codes){for(let i=keys.length-1;i>=0;i--){const d=codes.indexOf(keys[i]);if(d>=0)return d;}return undefined;}
 // Each human reads the original key set of its profile (players.js); touch drives player 1.
 function input(){const t=touch.read();return (game?.players??[]).map((p,slot)=>{if(p.bot)return {};if(netPlay?.owners&&netPlay.owners[slot]!==0)return netPlay.host?.input(slot)??{};const k=KEYSETS[p.keys??0];const i={direction:direction(k.slice(0,4)),fire:keys.includes(k[4])};if(p.id===0){i.direction=t.direction??i.direction;i.fire=i.fire||t.fire;}return i;});}
@@ -266,7 +268,7 @@ function guestInput(){const t=touch.read();return netPlay.humans.map((h,k)=>{con
 document.addEventListener('bulanci:quit',()=>closeNet());
 async function showScreen2() {
   const total=startTotal;
-  await dialogs.show(await startGame2({total,humans:savedHumans(total),rules:()=>rulesState,levelKey:$('#map-select').value,
+  await dialogs.show(await startGame2({total,humans:savedHumans(total),rules:()=>rulesState,levelKey:$('#map-select').value,bots:botMode,onBots:setBotMode,
     onBack:()=>showScreen1(),
     onRules:async()=>{const r=await dialogs.open(gameTypeDialog(rulesState));if(r){Object.assign(rulesState,r);try{localStorage.setItem(RULES_KEY,JSON.stringify(rulesState));}catch{}syncRules();}},
     onSettings:()=>openSetup(),
