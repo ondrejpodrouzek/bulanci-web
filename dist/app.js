@@ -19,6 +19,7 @@ import {setupDialog} from './ui/setup-dialog.js';
 import {pauseDialog} from './ui/pause-dialog.js';
 import {scoreScreen} from './ui/score-screen.js';
 import {loadingDialog} from './ui/loading-dialog.js';
+import {titleScreen,TITLE_MS} from './ui/title-screen.js';
 import {counterScreen,levelPicture,counterSample,COUNTER_TICK,COUNTER_STEPS} from './ui/counter-screen.js';
 import {createNetScreens} from './ui/net-screens.js';
 import {exitScreen} from './ui/exit-screen.js';
@@ -37,7 +38,7 @@ const keys=[],images=new Map(),bitmaps=new Map(),sounds=['0-0.wav','0-1.wav','0-
 let botMode=(()=>{try{return localStorage.getItem('bulanci.bots')||'original';}catch{return 'original';}})(),botsFight=(()=>{try{return localStorage.getItem('bulanci.botsfight')==='1';}catch{return false;}})(),intro=null;
 const touch=createTouchControls({frame:$('#game-frame'),onWeapon:()=>{if(netPlay?.role==='guest')netPlay.guest.weapon(0);else game?.switchWeapon(0);},onMenu:()=>netPlay?netPause():pauseGame()});
 // Phones get their own menu and sheets (phone-ui.js); the game stays the same.
-const phoneMenu=touch.isMobile()?createPhoneMenu({root:document.body,bots:()=>botMode,onBots:mode=>setBotMode(mode),fight:()=>botsFight,onFight:on=>setBotsFight(on),colors:PLAYER_COLORS.map((_,i)=>colorCss(i)),thumb:map=>layerSrc(map.layers[0]),
+const phoneMenu=touch.isMobile()?createPhoneMenu({root:document.body,bots:()=>botMode,onBots:mode=>setBotMode(mode),fight:()=>botsFight,onFight:on=>setBotsFight(on),colors:PLAYER_COLORS.map((_,i)=>colorCss(i)),thumb:map=>map.picture??layerSrc(map.layers[0]),
   onPlay:({level,human})=>{$('#map-select').value=level;$('#map-select').dispatchEvent(new Event('change'));$('#mode').value='training';$('#mode').dispatchEvent(new Event('change'));customHumans=[human];start().finally(()=>{customHumans=null;});},
   onNetwork:()=>openNet(),onHistory:()=>showHistory(),onBack:()=>document.dispatchEvent(new CustomEvent('bulanci:menu-view',{detail:'start'}))}):null;
 if(phoneMenu)new MutationObserver(()=>phoneMenu.setVisible(!$('#menu').hidden)).observe($('#menu'),{attributes:true,attributeFilter:['hidden']});
@@ -205,7 +206,7 @@ async function showScreen1(){if(netPlay)return;await dialogs.show(startGame1({to
 // not stop for one player. A round ends in the results and everybody stays in the room.
 let netPlay=null,netPauseClose=null;
 const netUI=(phoneMenu?createNetUI:createNetScreens)({dialogs,root:document.body,phone:true,colors:PLAYER_COLORS.map((_,i)=>colorCss(i)),
-  levels:()=>allLevels().filter(([key])=>maps[key]).map(([key,name])=>({key,name,src:layerSrc(maps[key].layers[0]),custom:!!maps[key].custom})),
+  levels:()=>allLevels().filter(([key])=>maps[key]).map(([key,name])=>({key,name,src:maps[key].picture??layerSrc(maps[key].layers[0]),custom:!!maps[key].custom})),
   sprite:(colorIndex,seat)=>{const n=180+seat%4,info=manifest.resources[n];return info&&{url:`assets/original/sprites/${n}-c${colorIndex}-sheet.png`,w:info.width,h:info.height,frames:info.frames,ms:info.duration_ticks};},
   keyHint:keys=>{const k=KEYSETS[keys??0],short=keyName;return keys===0?'Šipky, střelba mezerník, zbraň C':`${k.slice(0,4).map(short).join(' ')}, střelba ${short(k[4])}, zbraň ${short(k[5])}`;},
   ruleRanges:RULE_RANGES});
@@ -351,4 +352,7 @@ $('#start-text').disabled=true;$('#start-text').textContent='NAČÍTÁM DATA…'
 fetch('assets/icon-180.png').then(r=>r.ok?r.blob():null).then(b=>b&&new Promise(ok=>{const f=new FileReader();f.onload=()=>ok(f.result);f.readAsDataURL(b);})).then(url=>{if(url)document.querySelector('link[rel="apple-touch-icon"]').href=url;}).catch(()=>{});
 // An invitation link goes straight to the room.
 {const url=new URL(location.href),code=url.searchParams.get('hra');if(code){url.searchParams.delete('hra');history.replaceState(null,'',url);ready.then(()=>openNet({code}));}}
-ready.then(()=>showStartScreen());
+// CAdvertising, once per start of the program; an invitation link goes straight on.
+ready.then(async()=>{
+  if(!location.search.includes('debug')&&!netPlay){const win=titleScreen(image('assets/title.jpg')),timer=setTimeout(()=>win.onOk(),TITLE_MS);await dialogs.open(win);clearTimeout(timer);}
+  showStartScreen();});

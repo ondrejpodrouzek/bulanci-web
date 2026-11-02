@@ -15,9 +15,9 @@ export function createPhoneMenu({root,colors,thumb,bots,onBots,fight,onFight,onP
   const player={name:'Bulík',colorIndex:0,...load()};
   let level='malaria',original=false,visible=true,closeSheet=null;
   const menu=el('section','phone-menu');menu.id='phone-menu';
-  const head=el('header','phone-title');head.append(el('h1','','BULÁNCI'),tabs);
+  const head=el('header','phone-title');head.append(el('h1','','BULÁNCI'));
   let group=0,entries=[];
-  const tabs=el('div','phone-foes phone-tabs');tabs.hidden=true;
+  const tabs=el('div','phone-foes phone-tabs');tabs.hidden=true;head.append(tabs);
   const levels=el('div','phone-levels');levels.setAttribute('role','listbox');levels.setAttribute('aria-label','Level');
   const name=el('input','phone-name');Object.assign(name,{value:player.name,maxLength:16,autocomplete:'off',enterKeyHint:'done'});name.setAttribute('aria-label','Jméno hráče');
   const swatches=el('div','phone-colors');

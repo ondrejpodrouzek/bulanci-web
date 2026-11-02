@@ -319,3 +319,20 @@ Logic audit by area:
 - Not audited: fire conditions, bots, undead behaviour, creatures, game rules, network messages.
 
 The game logic has not been compared function by function. Earlier updates cover what was ported, but a port is not proof that nothing else is missing, as the death bug showed.
+
+## Class audit, 2 Nov 2026
+
+All 155 RTTI classes were compared with the web. Found missing and added:
+
+- `CGameCounter` (`0x410e20`, not statistics as an earlier note said): the level's picture, four lamps, one tick a second. Web: `ui/counter-screen.js`, in every mode, driven by the host in a network game.
+- `CAdvertising` (`0x40e5f0`): the title picture for 4 s after the program starts. Web: `ui/title-screen.js`.
+
+Accounted for: `CDeath2` is the ghost of the undead (ids 0x20-0x23, `0x41faab`), drawn from animation 218. `CObstacle` is the web's obstacle list, `CGaming` the game view, `CBulAnim` and `CKeybShow` the previews of Start hry 2 and Ovládání, `CMovieView` the Historie film, `CScroller`, `CListViewer`, `CItemInfo`, `CListBoxItem` and `CScoreItem` widget internals. `CSessionItem`, `CChatEdit` and `CColorSwitch` belong to the DirectPlay screens the web replaces. `CHelpDlg`, `CHelpView` and `CHelpScript` are unreachable in v1.80. `CDS*` and `IDS*` are the engine library: streams, DirectX, decoders.
+
+## Add-on levels (.eap)
+
+The EXE loads `*.eap` beside it. An .eap has the format of the EXE overlay, ids from 100000: t94 name and author, t21 picture and ground, t48 music, t28 bitmaps, t2026 script. Same natives as the original levels, plus `native_65` (`0x41f5d0`, walker with colour, speed, gun, ids 0x24..0x27) and `native_66` (`0x41cce0`, a script `CMina`). `tools/import_custom_maps.py` writes `dist/assets/custom/`, which stays out of Git. Web: `dist/custom-level.js`. The maps are by Martin Madejewský.
+
+## Web additions for network play
+
+Not in the EXE: rooms with Každý sám, Týmy or Kooperace, up to six bots, bots that shoot each other (`hostile`, `allied`, `assignTeams` in `rules.js`). A team mate's shots pass through and cannot kill. With the setting off and no teams, targets stay the EXE's: humans only.

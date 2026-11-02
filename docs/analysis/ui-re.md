@@ -272,3 +272,8 @@ lit; leaving (`0x423ef0`) plays 213. Both start only when the animation is still
 Labels switch only on selection: the command handler restores the previous one (`0x423a00`), hides the normal
 label and shows the active one. The constructor selects the default button (`0x426c95`). Keys (`0x424fa0`):
 S/H/K select Start/Historie/Konec, X quits the program (the web omits it).
+
+## Doplněno 2. 11. 2026
+
+- `0x410e20` je `CGameCounter`, ne statistika: obrázek levelu (`set_background`), 4 světla 34 na x = 517 + 70 i, y = 537; po 1 s rozsvítí 35 (vzorek 18), čtvrté 36 (vzorek 17), pátý tik zavře. Po síti tiká hostitel.
+- `0x40e5f0` je `CAdvertising`: po startu programu bílá plocha, obrázek 314 na středu, 4 s, klávesa nebo myš zavře.
