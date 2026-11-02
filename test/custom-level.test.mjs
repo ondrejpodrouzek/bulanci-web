@@ -32,7 +32,7 @@ test('a region sends a player to its target once per entry',()=>{
 test('the counter shows the level own picture',()=>{assert.equal(levelPicture({picture:'x.jpg'}),'x.jpg');assert.equal(levelPicture({source_resource:324}),'assets/original/53.png');assert.equal(levelPicture({}),null);});
 
 test('logic audit: undead and walkers decide again when a weapon animation ends (0x421557)',()=>{
-  const g=game({undead:true}),n=g.npcs[0];n.action={};n.wanderAt=999;g.finishWeaponAction(n);assert.notEqual(n.wanderAt,999);
+  const g=new Game({mapData:{...base,undead:true},mode:'local',humans:[{name:'A',colorIndex:0},{name:'B',colorIndex:1}],random:()=>.9}),n=g.npcs[0];n.direction=0;n.action={};n.wanderAt=999;g.finishWeaponAction(n);assert.equal(n.direction,3);assert.equal(n.wanderAt,999,'the wander timer stays');
 });
 test('logic audit: a computer teleports right after laying a mine (0x421343), a human does not',()=>{
   const g=new Game({mapData:{...base},mode:'training',humans:[{name:'A',colorIndex:0}]}),[a,b]=g.players;

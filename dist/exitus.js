@@ -70,10 +70,13 @@ export function resetWander(game,n) {
   n.wanderAt=game.elapsed+1+Math.min(9,Math.floor(game.random()*10));
   n.sightPollAt=game.elapsed+2;
 }
-export function turn(game,n) {
-  // 0x420a90: 1/13 of idle-weapon decisions release the current movement key.
+// 0x420a90: 1/13 of idle-weapon decisions release the current movement key.
+export function decide(game,n) {
   if(Math.floor(game.random()*13)===0&&n.moving)n.paused=true;
   else {game.face(n,Math.min(3,Math.floor(game.random()*4)));n.paused=false;}
+}
+function turn(game,n) {
+  decide(game,n); // the wander timer adds 0x4172d0
   resetWander(game,n);n.sensorId=null;n.targetId=null;n.fireAt=null;
 }
 export function updateUndead(game,n,dt) {

@@ -81,11 +81,11 @@ test('Exitus undead ignore training bots and fire one-shot timer1, re-armed by t
  bot.x=-1000;bot.dead=100;Object.assign(p,{x:600,y:300});
  let bursts=0;g.onEvent=e=>{if(e.type==='shot'&&e.player===n&&e.round===0)bursts++;};
  n.sightPollAt=g.elapsed+2;
- for(let i=0;i<90;i++){p.dead=0;g.update(1/60);}
+ for(let i=0;i<90;i++){p.dead=0;n.x=150;n.y=300;g.update(1/60);}
  assert.equal(bursts,1,'one burst after entry');
- for(let i=0;i<40;i++){p.dead=0;g.update(1/60);}
+ for(let i=0;i<40;i++){p.dead=0;n.x=150;n.y=300;g.update(1/60);}
  assert.equal(bursts,1,'still one before the poll fires');
- for(let i=0;i<45;i++){p.dead=0;g.update(1/60);}
+ for(let i=0;i<45;i++){p.dead=0;n.x=150;n.y=300;g.update(1/60);}
  assert.equal(bursts,2,'poll re-arms the one-shot timer');
 });
 
