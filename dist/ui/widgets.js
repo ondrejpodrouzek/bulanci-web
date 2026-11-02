@@ -77,6 +77,20 @@ export class Radio extends Widget {
   }
 }
 
+// Web addition: one radio box as an on/off switch, in the look of CRadio.
+export class Check extends Widget {
+  constructor(p){super({font:175,spacing:1,focusable:true,checked:false,w:180,h:15,...p});}
+  draw(ctx,o) {
+    if(!this.visible)return;
+    const alpha=stateAlpha(this),im=bitmap([121,119,122,120][(this.checked?2:0)+(this.focused?1:0)]),prev=ctx.globalAlpha;
+    ctx.globalAlpha=prev*alpha;if(ready(im))ctx.drawImage(im,o.x+this.x,o.y+this.y);ctx.globalAlpha=prev;
+    drawText(ctx,this.font,this.text,{x:o.x+this.x+26,y:o.y+this.y,w:this.w-26,h:15},{flags:4,spacing:this.spacing,alpha});
+  }
+  toggle(){this.checked=!this.checked;uiSound(14);this.onChange?.(this.checked);}
+  pointerDown(){if(!this.disabled)this.toggle();}
+  key(e){if(e.code==='Space'){this.toggle();return true;}return false;}
+}
+
 // CEdit 0x407760 (height forced to 23, text inset 5, font 175) and CNumEdit 0x407d50
 // (digits, minimum, maximum). The value is clamped when the field loses focus.
 export class NumEdit extends Widget {
@@ -129,6 +143,7 @@ export class TextEdit extends NumEdit {
   get value(){return this.text;} set value(v){this.text=String(v);}
   commit(){this.text=this.text.trim()||this.fallback||'';this.onChange?.(this.text);}
   key(e){
+    if((e.code==='Enter'||e.code==='NumpadEnter')&&this.onEnter){this.onEnter();return true;}
     if(e.code==='Backspace'){this.text=this.text.slice(0,-1);return true;}
     if(e.key&&e.key.length===1&&!e.ctrlKey&&!e.metaKey){if(this.text.length<this.digits)this.text+=e.key;return true;}
     return false;

@@ -26,7 +26,7 @@ BLOCK = 0x8000
 KNOWN_EXE = '2992cca12ec9ff452894045729ebf776a335e1dfcd9281260be6d8d9f6648e39'
 BITMAPS = [19, 20, 21, 23, 24, 25, 26, 30, 31, 32, *range(34, 55), *range(67, 74), *range(75, 113),
            116, 117, 147, 148, *range(150, 165), 172, 12288, 12290, 12292, 12294]
-JPEGS = {310: 'disco.jpg', 314: 'title.jpg', 315: 'menu.jpg', 313: 'original/menu-night.jpg',
+JPEGS = {311: 'original/menu-level-311.jpg', 312: 'original/menu-level-312.jpg', 310: 'disco.jpg', 314: 'title.jpg', 315: 'menu.jpg', 313: 'original/menu-night.jpg',
          316: 'original/menu-start.jpg', 317: 'original/menu-history.jpg', 318: 'original/menu-exit.jpg'}
 FILMS = (12289, 12291, 12293, 12295)
 FILM_COLUMNS = 10

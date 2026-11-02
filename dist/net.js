@@ -10,13 +10,15 @@
 //   chat    {text}                                   anyone -> all
 //   notice  {text}                                   host -> all, during a round
 //   start   {level,map,rules,players}                host -> all
+//   ready   {}                                       guest -> host, level loaded (0x4137b0)
+//   count   {step}                                   host -> all, the CGameCounter tick (0..4)
 // Game messages:
 //   input   {inputs:[{direction,fire,presses}]}      guest -> host, on every change
 //   weapon  {index}                                  guest -> host (local player index)
 //   snap    {s,events}                               host -> all, every SNAP_TICKS ticks
 //   end     {s}                                      host -> all
 import {eliminated} from './rules.js';
-export const SNAP_TICKS=2,HOST_TIMEOUT=8000,STALL_NOTICE=2500,SNAP_MS=SNAP_TICKS*1000/60,GLIDE_LIMIT=80,MAX_PLAYERS=4;
+export const READY_TIMEOUT=15000,SNAP_TICKS=2,HOST_TIMEOUT=8000,STALL_NOTICE=2500,SNAP_MS=SNAP_TICKS*1000/60,GLIDE_LIMIT=80,MAX_PLAYERS=4;
 export const netURL=()=>`${location.protocol==='https:'?'wss':'ws'}://${location.host}/net`;
 
 export function connectNet(url=netURL()) {
@@ -54,16 +56,16 @@ export function settle(list) {
 // game for the guests and the server's list.
 export function hostLobby(net,{locals,info,onChange,onJoin,onLeave}) {
   const guests=new Map(),chat=[];
-  const players=()=>settle([...locals().map(h=>({...h,peer:0})),...[...guests].flatMap(([peer,hs])=>hs.map(h=>({...h,peer})))]);
+  const players=()=>settle([...locals().map(h=>({...h,peer:0})),...[...guests].flatMap(([peer,hs])=>hs.map(h=>({...h,peer})))]).map((p,i)=>({...p,team:p.team??i%2}));
   const publish=()=>{
     const list=players(),about=info();
-    net.post({kind:'lobby',players:list.map(({name,colorIndex,peer})=>({name,colorIndex,peer})),info:about});
+    net.post({kind:'lobby',players:list.map(({name,colorIndex,peer,team})=>({name,colorIndex,peer,team})),info:about});
     net.send({t:'info',level:about.levelName,rule:about.summary,seats:list.length});onChange?.(list,chat);
   };
   const say=line=>{chat.push(line.slice(0,160));net.post({kind:'chat',text:line.slice(0,160)});onChange?.(players(),chat);};
   const offs=[
     net.on('hello',m=>{
-      const humans=(m.humans??[]).slice(0,3).map(h=>({name:String(h.name??'').slice(0,40)||'Hráč',colorIndex:(h.colorIndex|0)&7})),fresh=!guests.has(m.from);
+      const humans=(m.humans??[]).slice(0,3).map(h=>({name:String(h.name??'').slice(0,40)||'Hráč',colorIndex:(h.colorIndex|0)&7,team:h.team===0||h.team===1?h.team:undefined})),fresh=!guests.has(m.from);
       const others=players().filter(p=>p.peer!==m.from).length;
       if(others+humans.length>MAX_PLAYERS){net.post({kind:'reject',text:fresh?'Ve hře není dost volných míst.':'Další hráč se už nevejde.'},m.from);return;}
       guests.set(m.from,humans);publish();
@@ -91,7 +93,7 @@ export function guestLobby(net,{humans,onChange,onStart,onReject,onNotice}) {
     net.on('notice',m=>{if(m.from===0)onNotice?.(String(m.text).slice(0,160));}),
     net.on('start',m=>{if(m.from===0)onStart?.(m);}),
   ];
-  const hello=()=>net.post({kind:'hello',humans:humans().map(({name,colorIndex})=>({name,colorIndex}))},0);
+  const hello=()=>net.post({kind:'hello',humans:humans().map(({name,colorIndex,team})=>({name,colorIndex,team}))},0);
   hello();
   return {
     hello,chat,get players(){return players;},
@@ -135,7 +137,9 @@ export function hostGame(net,{game,owners,onEmpty}) {
     // A leaver vanishes from the field; the round goes on while two players can still fight.
     net.on('peer-leave',m=>{
       let left=false;owners.forEach((peer,i)=>{if(peer===m.peer){remote.delete(i);game.players[i].active=false;left=true;}});
-      if(left&&game.players.filter(p=>!p.bot&&p.active!==false&&!eliminated(game.rules,p)).length<2)onEmpty?.();
+      // Against bots or undead one player is enough.
+      const needed=game.players.some(p=>p.bot)||game.rules.play==='coop'&&game.npcs.length?1:2;
+      if(left&&game.players.filter(p=>!p.bot&&p.active!==false&&!eliminated(game.rules,p)).length<needed)onEmpty?.();
     }),
   ];
   return {

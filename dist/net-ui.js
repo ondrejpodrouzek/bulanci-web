@@ -116,10 +116,11 @@ export function createNetUI({root,phone,colors,levels,sprite,keyHint,ruleRanges}
       if(own) {
         const taken=new Set(s.players.filter(o=>o!==p).map(o=>o.colorIndex));
         seat.append(nameInput(p.name,t=>lobbyEls.onHuman(k,{name:t})),swatches(p.colorIndex,taken,c=>lobbyEls.onHuman(k,{colorIndex:c})));
+        if(s.info.rules?.play==='teams')seat.append(button('net-secondary',`Tým ${(p.team??0)+1}`,()=>lobbyEls.onHuman(k,{team:(p.team??0)?0:1})));
         if(!phone)seat.append(el('small','net-keys',keyHint(s.humans[k]?.keys)));
         if(k>0&&k===mine.length-1)seat.append(button('net-link','Odebrat',()=>lobbyEls.onLocalPlayers(s.humans.length-1)));
       } else {
-        seat.append(el('span','net-seat-name',p.name),el('small','net-keys',p.peer===0?'hostitel':'připojen'));
+        seat.append(el('span','net-seat-name',p.name),el('small','net-keys',s.info.rules?.play==='teams'?`Tým ${(p.team??0)+1}`:p.peer===0?'hostitel':'připojen'));
         if(s.role==='host')seat.append(button('net-link','Odebrat',()=>lobbyEls.onKick(p.peer)));
       }
       nodes.push(seat);
@@ -135,12 +136,16 @@ export function createNetUI({root,phone,colors,levels,sprite,keyHint,ruleRanges}
       const b=button('net-level','',()=>{if(host)lobbyEls.onLevel(l.key);});b.disabled=!host;b.setAttribute('aria-pressed',String(l.key===s.info.level));
       const im=el('img');im.src=l.src;im.alt='';b.append(im,el('span','',l.name));return b;}));
     if(!host){lobbyEls.rules.replaceChildren(el('p','net-summary',s.info.summary));return;}
-    const {type,limit,weapons}=s.info.rules,select=(label,value,options,onChange)=>{const w=el('label','net-field');w.append(el('span','',label));const e=el('select');for(const [v,t] of options){const o=el('option','',t);o.value=v;e.append(o);}e.value=value;e.onchange=()=>onChange(e.value);w.append(e);return w;};
+    const {type,limit,weapons,play,bots,foes,fight}=s.info.rules,select=(label,value,options,onChange)=>{const w=el('label','net-field');w.append(el('span','',label));const e=el('select');for(const [v,t] of options){const o=el('option','',t);o.value=v;e.append(o);}e.value=value;e.onchange=()=>onChange(e.value);w.append(e);return w;};
     const unit={time:'Vteřin',hits:'Zásahů k výhře',lives:'Životů'}[type],[min,max]=ruleRanges[type];
     const number=el('label','net-field');number.append(el('span','',unit));const n=el('input');Object.assign(n,{type:'number',inputMode:'numeric',min,max,value:limit});n.onchange=()=>lobbyEls.onRules({limit:+n.value});number.append(n);
     lobbyEls.rules.replaceChildren(
+      select('Hra',play,[['ffa','každý sám'],['teams','týmy'],['coop','kooperace']],v=>lobbyEls.onRules({play:v})),
       select('Hraje se',type,[['time','na čas'],['hits','na zásahy'],['lives','na životy']],v=>lobbyEls.onRules({type:v})),number,
-      select('Zbraně',weapons,[['classic','všechny'],['shotgun','pouze brokovnice']],v=>lobbyEls.onRules({weapons:v})));
+      select('Zbraně',weapons,[['classic','všechny'],['shotgun','pouze brokovnice']],v=>lobbyEls.onRules({weapons:v})),
+      select('Boti',String(bots),[0,1,2,3,4,5,6].map(n=>[String(n),n?String(n):'žádní']),v=>lobbyEls.onRules({bots:+v})),
+      select('Boti se',foes,[['original','jen stojí'],['walk','procházejí'],['hunt','loví']],v=>lobbyEls.onRules({foes:v})),
+      select('Po sobě',fight?'1':'0',[['1','střílí'],['0','nestřílí']],v=>lobbyEls.onRules({fight:v==='1'})));
   }
   function renderChat(s) {
     if(s.chat.length===lastChat)return;lastChat=s.chat.length;
@@ -151,9 +156,9 @@ export function createNetUI({root,phone,colors,levels,sprite,keyHint,ruleRanges}
     if(view!=='lobby'){view='lobby';hub=null;buildLobby(s);}else open();
     Object.assign(lobbyEls,{link:s.link,onHuman:s.onHuman,onLocalPlayers:s.onLocalPlayers,onLevel:s.onLevel,onRules:s.onRules,onSay:s.onSay,onKick:s.onKick,onStart:s.onStart});
     renderSeats(s);renderSetup(s);renderChat(s);
-    const host=s.role==='host',enough=s.players.length>=2;
+    const host=s.role==='host',enough=s.players.length>=2||s.alone;
     lobbyEls.start.hidden=!host;lobbyEls.start.disabled=!enough;
-    lobbyEls.status.textContent=s.info.playing?'Právě se hraje kolo. Do dalšího se přidáte sami.':host?(enough?`Hráči: ${s.players.length} ze ${s.maxPlayers}. Spusťte hru, až budou všichni tady.`:'Zatím tu jste sami. Pošlete kamarádům kód nebo odkaz.'):'Hru spustí hostitel. Zatím si nastavte jméno a barvu.';
+    lobbyEls.status.textContent=s.info.playing?'Právě se hraje kolo. Do dalšího se přidáte sami.':host?(enough?`Hráči: ${s.players.length} ze ${s.maxPlayers}. Spusťte hru, až budou všichni tady.`:'Zatím tu jste sami. Přidejte boty nebo pošlete kamarádům kód.'):'Hru spustí hostitel. Zatím si nastavte jméno a barvu.';
   }
   function open(){screen.hidden=false;fitKeyboard();if(!screen.contains(document.activeElement))screen.focus({preventScroll:true});}
   function hide(){screen.hidden=true;}

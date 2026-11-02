@@ -1,1 +1,1 @@
-export const CACHE='bulanci-exe-assets-v3',DONE_MARK='original/poems.json';
+export const CACHE='bulanci-exe-assets-v4',DONE_MARK='original/poems.json';

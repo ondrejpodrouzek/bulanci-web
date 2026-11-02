@@ -7,6 +7,7 @@
 //   weapon icon  column 4 of table 0x482820 at (X+59,57)
 //   score        CNumCounter (X+59,41): three rolling digits
 //   time         font 174, style 5, rectangle (358,45)-(444,95), palette 0x4b39ec
+import {TEAM_COLORS} from './players.js';
 export const PANEL_X=[12,149,556,693],BAR_Y=495;
 export const WEAPON_ICON=[172,169,170,171,168,167];
 // Column 5 of the same table: the mark of one round; 0 means the plain bar 165 (0x426ff4).
@@ -70,7 +71,7 @@ export function createHud({image,drawText}) {
   }
   function panel(ctx,game,p,i,now) {
     const X=PANEL_X[i];
-    drawText(ctx,175,p.name,{x:X+4,y:BAR_Y+9,w:88,h:13},{flags:5,spacing:1,alpha:0x90/255});
+    drawText(ctx,175,p.name,{x:X+4,y:BAR_Y+9,w:88,h:13},{flags:5,spacing:1,alpha:0x90/255,color:game.rules?.play&&p.team!=null?TEAM_COLORS[p.team]??TEAM_COLORS[1]:null});
     put(ctx,FRAME,X+5,BAR_Y+40);
     const face=image(`assets/original/ui/29-c${p.colorIndex??0}.png`);
     if(face.complete&&face.naturalWidth)ctx.drawImage(face,X+6,BAR_Y+41);

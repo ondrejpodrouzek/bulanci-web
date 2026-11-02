@@ -79,3 +79,6 @@ html.touch-device #message{top:50px;font-size:13px}
 .phone-score{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;counter-reset:place}
 .phone-score li{display:flex;align-items:center;gap:10px;min-height:38px;padding:0 12px;border-radius:10px;background:#fff1}
 .phone-score i{flex:none;width:14px;height:14px;border-radius:50%}.phone-score span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.phone-score b{font-size:18px;font-variant-numeric:tabular-nums}
+
+.phone-brawl{display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;color:#bbb}.phone-brawl input{width:20px;height:20px;margin:0}
+.net-rules{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}

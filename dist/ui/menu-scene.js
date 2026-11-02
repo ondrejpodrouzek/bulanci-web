@@ -1,7 +1,7 @@
 // Living parts of the original main menu CMenu (ctor 0x4265e0) that sit on the 315 picture:
 // bitmap 313 at (610, 0) by night, the poem scroller CPoemScroller, "Verze: 1.80" and four
 // film scratches CRuch. See analysis/ui-re.md, "Hlavní menu".
-import {createDisplay} from '../display.js';
+import {createDisplay,pictureBuffer,presentSharp} from '../display.js';
 import {loadFont,measure,drawText} from './font.js';
 import {StaticText} from './widgets.js';
 import {isMenuNight} from '../game-audio.js';
@@ -26,7 +26,7 @@ export function attachMenuScene(stage,menu) {
   const night=document.createElement('img');night.className='menu-night';night.alt='';night.src='assets/original/menu-night.jpg';night.hidden=true;
   const canvas=document.createElement('canvas');canvas.className='menu-scene';canvas.width=800;canvas.height=600;
   stage.prepend(canvas);stage.prepend(night);
-  const display=createDisplay(canvas),ctx=display.ctx;
+  const display=createDisplay(canvas),{canvas:picture,ctx}=pictureBuffer();
   const version=new StaticText({x:230,y:575,text:'Verze: 1.80',font:176,spacing:1});
   let poems=[],text=null,pos=POEM.h,nextTick=0,active=false,activeSince=0,raf=0;
   const scratches=Array.from({length:SCRATCH.count},()=>({x:rand(800),visible:false,next:Infinity}));
@@ -55,9 +55,10 @@ export function attachMenuScene(stage,menu) {
     ctx.globalAlpha=prev;
   }
   function render() {
-    display.begin();ctx.clearRect(0,0,800,600);
+    ctx.clearRect(0,0,800,600);
     drawPoem();version.draw(ctx,{x:0,y:0});
     ctx.fillStyle=SCRATCH.color;for(const s of scratches)if(s.visible)ctx.fillRect(s.x,0,1,600);
+    display.begin();display.ctx.setTransform(1,0,0,1,0,0);display.ctx.clearRect(0,0,canvas.width,canvas.height);presentSharp(display.ctx,picture,0,0,canvas.width,canvas.height,{hard:display.pixels==='sharp'});
   }
   function update(now) {
     let changed=false;

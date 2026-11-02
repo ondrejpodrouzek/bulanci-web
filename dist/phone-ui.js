@@ -2,6 +2,7 @@
 // too small for thumbs, so phones get their own menu, pause and result sheets. The game itself
 // and the desktop screens are untouched. Network play has its own screen (net-ui.js); Historie still
 // opens the original dialog, enlarged by the touch hit margin.
+import {teamResult} from './rules.js';
 const PLAYER_KEY='bulanci.phone.player.v1';
 const load=()=>{try{return JSON.parse(localStorage.getItem(PLAYER_KEY))||{};}catch{return {};}};
 const save=v=>{try{localStorage.setItem(PLAYER_KEY,JSON.stringify(v));}catch{}};
@@ -10,7 +11,7 @@ const button=(cls,text,onClick)=>{const b=el('button',cls,text);b.type='button';
 const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
 const iosBrowser=()=>/iPhone|iPad|iPod/.test(navigator.userAgent);
 
-export function createPhoneMenu({root,colors,thumb,bots,onBots,onPlay,onNetwork,onHistory,onBack}) {
+export function createPhoneMenu({root,colors,thumb,bots,onBots,fight,onFight,onPlay,onNetwork,onHistory,onBack}) {
   const player={name:'Bulík',colorIndex:0,...load()};
   let level='malaria',original=false,visible=true,closeSheet=null;
   const menu=el('section','phone-menu');menu.id='phone-menu';
@@ -22,10 +23,11 @@ export function createPhoneMenu({root,colors,thumb,bots,onBots,onPlay,onNetwork,
   const foes=el('div','phone-foes');foes.setAttribute('role','radiogroup');foes.setAttribute('aria-label','Soupeři v tréninku');foes.append(el('span','','Soupeři'));
   const paintFoes=()=>{for(const b of foes.querySelectorAll('button'))b.setAttribute('aria-pressed',String(b.dataset.mode===bots()));};
   for(const [mode,label] of [['original','Stojí'],['walk','Chodí'],['hunt','Loví']]){const b=button('',label,()=>{onBots(mode);paintFoes();});b.dataset.mode=mode;foes.append(b);}
+  const brawl=el('label','phone-brawl'),brawlBox=el('input');brawlBox.type='checkbox';brawlBox.checked=fight();brawlBox.onchange=()=>onFight(brawlBox.checked);brawl.append(brawlBox,el('span','','Střílí i po sobě'));
   const tools=el('nav','phone-tools');
   tools.append(button('', 'Hra po síti',()=>{player.name=name.value.trim()||'Bulík';save(player);onNetwork();}),button('','Historie',()=>{setOriginal(true);onHistory();}),button('','Zvuk',()=>sound()));
   const tip=el('p','phone-tip','Celá obrazovka: Sdílet → Přidat na plochu');tip.hidden=!iosBrowser()||standalone();
-  const side=el('div','phone-side');const who=el('div','phone-who');who.append(name,swatches);side.append(who,foes,play,tools,tip);paintFoes();
+  const side=el('div','phone-side');const who=el('div','phone-who');who.append(name,swatches);side.append(who,foes,brawl,play,tools,tip);paintFoes();
   menu.append(head,levels,side);
   const back=button('phone-back','‹ Zpět',()=>{setOriginal(false);onBack();});back.hidden=true;
   const sheet=el('section','phone-sheet');sheet.hidden=true;
@@ -64,7 +66,7 @@ export function createPhoneMenu({root,colors,thumb,bots,onBots,onPlay,onNetwork,
   });
   // Result table of the round: the same order as the original Statistika, highest score first.
   const score=game=>open('Statistika',(box,close)=>{
-    const list=el('ol','phone-score');
+    const list=el('ol','phone-score'),result=teamResult(game);if(result)box.append(el('p','',result));
     for(const p of [...game.players].sort((a,b)=>b.score-a.score)){const row=el('li');const dot=el('i');dot.style.background=p.color;row.append(dot,el('span','',p.name),el('b','',String(p.score)));list.append(row);}
     box.append(list,button('phone-primary','Zpět do menu',()=>close()));
   });

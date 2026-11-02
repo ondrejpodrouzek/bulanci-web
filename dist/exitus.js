@@ -1,6 +1,7 @@
 // CBulanek Exitus branch, recovered from the supplied EXE. Evidence in exitus-re.md.
 import {EXITUS_DATA} from './original-data.js';
 import {playerRect,rectsOverlap,blocksShots} from './collision.js';
+import {hostile} from './rules.js';
 export const isExitus = map => map?.source_resource===324;
 const rect=([l,t,r,b])=>({x:l,y:t,w:r-l,h:b-t});
 
@@ -37,7 +38,8 @@ export function sightCorridor(n,p) {
 // Sensor masks hold only the four human player slots (0x4194b0 tests mask & 0xf);
 // training opponents (ids 0x7d..0x7f) and level NPCs never trigger another actor's sensor.
 // An invisible actor (+0x198, eye power-up) only enters regions flagged 2 (0x417dfd); sensors are not.
-export const sensorTargets=game=>game.players.filter(p=>!p.bot&&!(p.effects?.invisible>0));
+// viewer: the actor looking; hostile() keeps that rule unless teams or fighting bots are on.
+export const sensorTargets=(game,viewer)=>game.players.filter(p=>!(p.effects?.invisible>0)&&(viewer?hostile(game,viewer,p):!p.bot));
 // 0x4192b0 unions the overlapping scenery bounds (0x433200), then checks whether BOTH
 // transverse edges expanded. A partial obstruction leaves a shooting lane. Preserve that
 // native rectangle test rather than a raycast.
@@ -55,12 +57,12 @@ export function sensorSees(game,n,p,direction) {
 }
 export function sensorMasks(game,n) {
   const masks=[0,0,0,0];
-  for(const p of sensorTargets(game)){const s=sightCorridor(n,p);if(s)masks[s.direction]|=1<<p.id;}
+  for(const p of sensorTargets(game,n)){const s=sightCorridor(n,p);if(s)masks[s.direction]|=1<<p.id;}
   return masks;
 }
 export function visibleTarget(game,n) {
   // Four native sensors, then the lowest player bit in the sensor mask.
-  for(let direction=0;direction<4;direction++)for(const p of sensorTargets(game))
+  for(let direction=0;direction<4;direction++)for(const p of sensorTargets(game,n))
     if(sensorSees(game,n,p,direction))return {player:p,direction};
   return null;
 }

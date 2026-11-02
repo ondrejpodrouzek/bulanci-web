@@ -7,6 +7,6 @@ export function loadingDialog() {
   const bar=new ProgressBar({x:20,y:50,w:250-20-20,h:5});
   const win=new Window({w:250,h:75,widgets:[new StaticText({x:20,y:20,text:'Načítá se level...',font:174,spacing:2}),bar]});
   win.progress=(value,max)=>{bar.value=value;bar.max=max;};
-  win.onCancel=null;
+  win.onCancel=null;win.overlay=true;win.key=()=>true;
   return win;
 }

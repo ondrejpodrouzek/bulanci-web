@@ -4,7 +4,7 @@
 // times they killed whom. Alone (training) the screen adds the level's record table.
 // Every text here is drawn at full opacity (+0x94 = 1), table rows only when highlighted.
 import {StaticText,Picture,Bulanek,Window} from './widgets.js';
-import {finalScore} from '../rules.js';
+import {finalScore,teamResult} from '../rules.js';
 
 const X=[0x88,0x117,0x1a7,0x237];              // slot x (0x4ae788)
 const Y=[0xf0,0x10e,0x12c,0x14a];              // bulánek y by place (0x4ae798)
@@ -84,6 +84,8 @@ export function scoreScreen({game,level,manifest,random=Math.random}) {
       if(k+1<records.length&&diff(records[k+1])!==diff(r))rank++;
     });
   }
+  const result=teamResult(game);
+  if(result)widgets.push(text({x:0,y:0x96,w:800,h:18,text:result}));
   widgets.push(new Bulanek({x:0x78,y:0x32,resource:303,colorIndex:null,once:true,manifest}));
   const win=new Window({w:800,h:600,x:0,y:0,widgets});
   win.key=e=>{if(e.code==='Escape'||e.code==='Enter'||e.code==='NumpadEnter'){win.onOk();return true;}return false;};

@@ -1,7 +1,7 @@
 // Overlay that shows original screens and dialogs above the game frame, at native resolution.
 // A stack: a persistent screen (e.g. Start hry) at the bottom, modal dialogs above it. Only
 // the top window takes input; pointer events outside every window pass through to the page.
-import {createDisplay} from '../display.js';
+import {createDisplay,pictureBuffer,presentSharp} from '../display.js';
 import {loadFont} from './font.js';
 import {preloadBitmaps,loadSpriteManifest} from './widgets.js';
 
@@ -10,9 +10,10 @@ export function createDialogLayer(frame) {
   canvas.hidden=true;frame.append(canvas);
   // A real input carries typing on phones (virtual keyboard) and for assistive technology.
   const input=document.createElement('input');input.className='dialog-input';input.autocomplete='off';input.hidden=true;frame.append(input);
-  const display=createDisplay(canvas),ctx=display.ctx;
+  // Windows are drawn at the scene's own 800x600 and enlarged in one piece (display.js).
+  const display=createDisplay(canvas,{phoneScale:3}),screen=display.ctx,{canvas:picture,ctx}=pictureBuffer();
   const stack=[];let raf=0,suspended=false;
-  const ready=Promise.all([loadFont(174),loadFont(175),loadFont(176),loadSpriteManifest(),preloadBitmaps([132,139,142,19,27,30,31,32,113,114,115,119,120,121,122,123,125,126,127,129,131,133])]);
+  const ready=Promise.all([loadFont(174),loadFont(175),loadFont(176),loadSpriteManifest(),preloadBitmaps([34,35,36,132,139,142,19,27,30,31,32,113,114,115,119,120,121,122,123,125,126,127,129,131,133])]);
   // While suspended (a web panel such as the volume popup covers the screen) the layer is hidden
   // and takes no input.
   const top=()=>suspended?null:stack.at(-1)?.win??null;
@@ -25,12 +26,13 @@ export function createDialogLayer(frame) {
     const r=canvas.getBoundingClientRect(),s=r.width/800;
     input.inputMode=w.numeric?'numeric':'text';input.maxLength=w.digits??40;
     Object.assign(input.style,{left:`${(win.x+w.x)*s}px`,top:`${(win.y+w.y)*s}px`,width:`${w.w*s}px`,height:`${w.h*s}px`});
-    if(input.hidden||input.dataset.for!==String(w.uid??=Math.random())){input.hidden=false;input.dataset.for=String(w.uid);input.value=w.text;}
+    if(input.hidden||input.dataset.for!==String(w.uid??=Math.random())||input.value!==w.text){input.hidden=false;input.dataset.for=String(w.uid);input.value=w.text;}
     if(document.activeElement!==input)input.focus({preventScroll:true});
   }
   // Windows have no background of their own, so a dialog replaces the screen it was opened
   // from instead of being drawn over it.
-  function render(now){display.begin();ctx.clearRect(0,0,800,600);const shown=modal()?[stack.at(-1)]:stack;for(const s of shown)s.win.draw(ctx,now);raf=stack.length?requestAnimationFrame(render):0;}
+  // A window marked overlay (CLoadingLevel) lies on the screen under it.
+  function render(now){ctx.clearRect(0,0,800,600);const last=stack.at(-1),shown=!modal()?stack:last.win.overlay?stack.slice(-2):[last];for(const s of shown)s.win.draw(ctx,now);display.begin();screen.setTransform(1,0,0,1,0,0);screen.clearRect(0,0,canvas.width,canvas.height);presentSharp(screen,picture,0,0,canvas.width,canvas.height,{hard:display.pixels==='sharp'});raf=stack.length?requestAnimationFrame(render):0;}
   const kick=()=>{if(!raf&&stack.length)raf=requestAnimationFrame(render);};
   // A screen has no background: a click on its empty area falls through to the page below
   // (the web sound and fullscreen links lie inside the Start hry window).

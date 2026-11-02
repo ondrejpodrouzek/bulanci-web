@@ -16,6 +16,12 @@ if (menu && frame && !document.querySelector('.original-menu-stage')) {
   for(const [button,normal,active,label] of [[start,147,148,'Start'],[historyButton,67,68,'Historie'],[exitButton,75,76,'Konec']]) {
     button.type='button';button.innerHTML=`<span class="menu-orb" aria-hidden="true"></span><img class="menu-word" src="assets/original/${normal}.png" alt="${label}"><img class="menu-word menu-word-active" src="assets/original/${active}.png" alt="" aria-hidden="true">`;
   }
+  // The words are 1:1 bitmaps too: stored with hard 4x pixels, the browser's own scaling stays clean.
+  for(const word of stage.querySelectorAll('.menu-word'))word.addEventListener('load',()=>{
+    if(word.dataset.crisp)return;word.dataset.crisp='1';
+    const c=document.createElement('canvas');c.width=word.naturalWidth*4;c.height=word.naturalHeight*4;
+    const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(word,0,0,c.width,c.height);word.src=c.toDataURL();
+  });
   // CMenu orb buttons (0x424bc0): an animation with clips 212 and 213 (8 frames, 568 ms), shown
   // on clip 212 frame 0. Pointer over a button that is not selected (0x423f20) plays 212 once
   // with global sample 0 and leaves it lit; pointer out (0x423ef0) plays 213 once. Either only

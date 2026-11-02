@@ -16,3 +16,9 @@
 #menu:not(:has(.original-menu-stage)){visibility:hidden}
 
 #gun-mouse{position:absolute;inset:0;margin:auto;z-index:70;pointer-events:none}#gun-mouse[hidden]{display:none}#game-frame.gun-cursor,#game-frame.gun-cursor *{cursor:none!important}
+
+/* The game is an application, not a page of text: nothing selects or drags except the input fields. */
+body:has(#game-frame){-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body:has(#game-frame) input,body:has(#game-frame) textarea{-webkit-user-select:text;user-select:text}
+body:has(#game-frame) img{-webkit-user-drag:none}
+#game-frame.net-open .menu-audio-shortcut,#game-frame.net-open .menu-fullscreen-shortcut{display:none}

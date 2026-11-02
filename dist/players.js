@@ -1,6 +1,7 @@
 // Player profiles of the original (defaults 0x40a290, tables 0x4ae5ec / 0x4ae604 / 0x4ae60c /
 // 0x4ae614) and the eight player colours (0x4aef24, the swatches of bitmap 19).
 export const PLAYER_COLORS=[[8,141,0],[207,87,87],[156,113,87],[215,51,8],[179,169,0],[187,100,187],[123,123,192],[95,95,95]];
+export const TEAM_COLORS=['#4aa3ff','#ff5a4a']; // web: team marks, the EXE has no teams
 export const colorCss=i=>`rgb(${PLAYER_COLORS[i]??PLAYER_COLORS[0]})`;
 // Four key sets, DirectInput scan codes in the order left, right, up, down, fire, weapon.
 export const KEYSETS=[

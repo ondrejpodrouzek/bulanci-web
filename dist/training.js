@@ -51,9 +51,9 @@ export function updateTrainingBot(game,p) {
       // 0x421079 stores the sensor message before the visibility test, so an entry from
       // behind cover still occupies the sensor until the next exit.
       const entered=masks[d]&~previous[d];
-      p.targetId=sensorTargets(game).find(q=>entered&(1<<q.id))?.id??null;
+      p.targetId=sensorTargets(game,p).find(q=>entered&(1<<q.id))?.id??null;
       // During a teleport the turn fails (0x4197b0), so no timer is armed.
-      if(!teleporting(game,p)&&sensorTargets(game).some(q=>(entered&(1<<q.id))&&sensorSees(game,p,q,d))) {
+      if(!teleporting(game,p)&&sensorTargets(game,p).some(q=>(entered&(1<<q.id))&&sensorSees(game,p,q,d))) {
         game.face(p,d);p.fireAt=game.elapsed+Math.floor(game.random()*4)*.5;
       }
     }
@@ -69,7 +69,7 @@ export const BOT_MODES=['original','walk','hunt'];
 const AIM={walk:{delay:()=>0,repeat:1.5},hunt:{delay:()=>.25,repeat:.9}};
 function nextTurn(game,p){p.turnAt=game.elapsed+1+game.random()*(p.turnSpan??3);}
 function headFor(game,p) {
-  const prey=sensorTargets(game).filter(q=>q.dead<=0&&q.active!==false).sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
+  const prey=sensorTargets(game,p).filter(q=>q.dead<=0&&q.active!==false).sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
   if(!prey||game.random()<.25)return Math.floor(game.random()*4);
   const dx=prey.x-p.x,dy=prey.y-p.y;
   return Math.abs(dx)>Math.abs(dy)?(dx<0?0:1):(dy<0?2:3);

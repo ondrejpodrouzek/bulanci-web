@@ -11,7 +11,7 @@ import {updateTrainingBot,updateWalkingBot,BOT_MODES,trainingRespawnWeapon,train
 import {createPowerups,updatePowerups,hasEffect} from './powerups.js';
 import {isEightBit,prepareEightBit,createEightBit,updateEightBit,eightBitShotHit} from './eightbit.js';
 import {teleporting} from './training.js';
-import {resolveRules,refreshScores,afterKill,afterDeath,eliminated} from './rules.js';
+import {resolveRules,refreshScores,afterKill,afterDeath,eliminated,assignTeams,allied} from './rules.js';
 import {createPickups,updatePickups,humanDied,weaponEnded} from './pickups.js';
 import {defaultHumans,colorCss} from './players.js';
 import {createSceneAnims,updateSceneAnims} from './scene-anims.js';
@@ -55,10 +55,10 @@ export const DIRECTIONS=[[-1,0],[1,0],[0,-1],[0,1]];
 // Native muzzle vectors are relative to the union of body and attached weapon bounds.
 export function muzzlePoint(x,y,direction,type,actor={}){const m=WEAPONS[type].muzzle?.[direction];if(!m)return{x,y};const layout=actorLayout({...actor,x,y,direction,weapon:type},type,direction);return{x:layout.originX+m[0],y:layout.originY+m[1]};}
 export class Game{
- constructor({mapData,mode='training',humans,duration,gameType,limit,weapons='classic',bots='original',random=Math.random,onEvent=()=>{}}){this.botMode=BOT_MODES.includes(bots)?bots:'original';this.map=prepareEightBit(prepareBedtime(prepareExitus(mapData,random),random));mapData=this.map;this.npcs=[];this.mode=mode;this.weaponMode=mode==='training'||weapons!=='shotgun'?'classic':'shotgun'; // training forces all weapons (0x4136f9)
-  this.random=random;this.onEvent=onEvent;this.rules=resolveRules({mode,gameType:gameType??'time',limit:limit??duration});this.time=this.rules.type==='time'?this.rules.limit:Infinity;this.elapsed=0;this.over=false;this.bullets=[];this.pickups=[];this.mines=[];this.explosions=[];this.pending=[];this.pipes=(mapData&&mapData.source_resource===PIPE_NETWORK.source_resource)?PIPE_NETWORK.pipes:[];this.teleports=[];this.creatures=isEightBit(this.map)?createEightBit(this):createCreatures(this);this.powerups=createPowerups(this);this.sceneAnims=createSceneAnims(this);this.humans=humans??defaultHumans(mode==='training'?1:2);
+ constructor({mapData,mode='training',humans,duration,gameType,limit,weapons='classic',bots='original',play='ffa',botCount=0,botsFight=false,random=Math.random,onEvent=()=>{}}){this.botsFight=!!botsFight;this.botMode=BOT_MODES.includes(bots)?bots:'original';this.map=prepareEightBit(prepareBedtime(prepareExitus(mapData,random),random));mapData=this.map;this.npcs=[];this.mode=mode;this.weaponMode=mode==='training'||weapons!=='shotgun'?'classic':'shotgun'; // training forces all weapons (0x4136f9)
+  this.random=random;this.onEvent=onEvent;this.rules=resolveRules({mode,gameType:gameType??'time',limit:limit??duration});if(mode!=='training'&&play!=='ffa')this.rules.play=play;this.time=this.rules.type==='time'?this.rules.limit:Infinity;this.elapsed=0;this.over=false;this.bullets=[];this.pickups=[];this.mines=[];this.explosions=[];this.pending=[];this.pipes=(mapData&&mapData.source_resource===PIPE_NETWORK.source_resource)?PIPE_NETWORK.pipes:[];this.teleports=[];this.creatures=isEightBit(this.map)?createEightBit(this):createCreatures(this);this.powerups=createPowerups(this);this.sceneAnims=createSceneAnims(this);this.humans=humans??defaultHumans(mode==='training'?1:2);
   // Computers (ids > 3) get a random colour (0x41e7f0); training adds three of them.
-  this.players=Array.from({length:mode==='training'?4:this.humans.length},(_,id)=>{const h=this.humans[id],colorIndex=h?h.colorIndex:Math.floor(random()*8);return {id,bot:!h,spawned:false,speedPercent:100,name:h?h.name:'Soupeř '+id,colorIndex,keys:h?.keys,color:colorCss(colorIndex),x:0,y:0,direction:3,dead:0,score:0,kills:0,deaths:0,weapon:0,ammo:[5,0,0,0,0,0],cooldown:0,reloading:0,moving:false,walk:0,think:random()*2,deathElapsed:0};});for(const p of this.players)this.spawn(p);refreshScores(this);
+  this.players=Array.from({length:mode==='training'?4:this.humans.length+botCount},(_,id)=>{const h=this.humans[id],colorIndex=h?h.colorIndex:Math.floor(random()*8);return {id,bot:!h,spawned:false,speedPercent:100,name:h?h.name:'Soupeř '+id,colorIndex,keys:h?.keys,team:h?.team,color:colorCss(colorIndex),x:0,y:0,direction:3,dead:0,score:0,kills:0,deaths:0,weapon:0,ammo:[5,0,0,0,0,0],cooldown:0,reloading:0,moving:false,walk:0,think:random()*2,deathElapsed:0};});assignTeams(this.players,this.rules.play,this.botsFight);for(const p of this.players)this.spawn(p);refreshScores(this);
   // Exitus allocates four undead slots; the native initializer enables the first one.
   this.npcs=[];const npcN=(mapData&&mapData.npcs)||0;for(let i=0;i<npcN;i++){const n={id:isExitus(mapData)?32+i:200+i,npc:true,undead:isExitus(mapData),active:!isExitus(mapData)||i===0,spawned:false,speedPercent:isExitus(mapData)?40:100,colorIndex:1+i%3,x:0,y:0,direction:Math.floor(random()*4),dead:0,score:0,deaths:0,weapon:0,ammo:[5,0,0,0,0,0],cooldown:0,reloading:0,moving:false,walk:0,think:random()*0.3,deathElapsed:0,lastShotWeapon:0};this.npcs.push(n);this.spawnNpc(n);}
   this.pickups=createPickups(this);}
@@ -137,6 +137,7 @@ export class Game{
  }
  hit(target,bullet){this.kill(target,bullet.owner,{direction:bullet.direction??(bullet.vx<0?0:bullet.vx>0?1:bullet.vy<0?2:3)});}
  kill(target,ownerId,options={}){if(target.dead)return;if(hasEffect(target,'shield'))return; // death message ignored under +0x19a (0x420d80)
+ if(this.rules.play&&allied(this.actors().find(p=>p.id===ownerId),target))return; // web: nobody can kill a team mate
  this.cancelWeaponAction(target,false);target.deathAnchor=actorAnchor(target);const fall=deathChoice(target.direction,options.direction??target.direction,options.blast,target.undead);target.direction=fall.direction;target.deathRes=fall.resource;target.dead=deathSeconds(fall.resource);target.deathElapsed=0;target.deaths++;target.moving=false;humanDied(this,target);const owner=this.actors().find(p=>p.id===ownerId);
  // Message 0xd8 credits the shooter with no check for a suicide (0x420dd6); per-victim kills: record +0xea+4*victim.
  if(owner){owner.kills=(owner.kills??0)+1;(owner.victims??={})[target.id]=(owner.victims[target.id]??0)+1;}
@@ -155,7 +156,9 @@ export class Game{
   }
   // 0x418300 does not skip the shooter (a pipe can return a shot to it), and CDeath takes over the
   // character's rectangle with +0x69 set (0x41c82b): a lying body stops shots like a wall.
-  for(const p of this.actors())if(p.active!==false&&p.spawned!==false)consider(playerRect(p.x,p.y),p.dead>0?'wall':'actor',p.dead>0?{}:p);
+  // Web: a team mate's shot passes through.
+  const shooter=this.rules.play?this.actors().find(p=>p.id===owner):null;
+  for(const p of this.actors())if(p.active!==false&&p.spawned!==false&&!(p.dead<=0&&allied(shooter,p)))consider(playerRect(p.x,p.y),p.dead>0?'wall':'actor',p.dead>0?{}:p);
   return first;
  }
  advanceShotgun(b,ex,ey,at){

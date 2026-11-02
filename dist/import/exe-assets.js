@@ -5,7 +5,7 @@
 // buildAssets yields {path,data,type}; path is relative to the page, data a Uint8Array or Blob.
 const BLOCK=0x8000;
 const BITMAPS=new Set([19,20,21,23,24,25,26,30,31,32,...range(34,55),...range(67,74),...range(75,113),116,117,147,148,...range(150,165),172,12288,12290,12292,12294]);
-const JPEGS={310:'disco.jpg',314:'title.jpg',315:'menu.jpg',313:'original/menu-night.jpg',316:'original/menu-start.jpg',317:'original/menu-history.jpg',318:'original/menu-exit.jpg'};
+const JPEGS={311:'original/menu-level-311.jpg',312:'original/menu-level-312.jpg',310:'disco.jpg',314:'title.jpg',315:'menu.jpg',313:'original/menu-night.jpg',316:'original/menu-start.jpg',317:'original/menu-history.jpg',318:'original/menu-exit.jpg'};
 const UNASSIGNED=new Set([0x81,0x83,0x88,0x90,0x98]); // no such characters in CP1250
 const FILMS=[12289,12291,12293,12295],FILM_COLUMNS=10;
 export class NotBulanci extends Error {}

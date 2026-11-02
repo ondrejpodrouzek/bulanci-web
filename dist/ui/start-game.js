@@ -1,6 +1,6 @@
 // Original start screens: CStartGame1 (0x40c650) and CStartGame2 (0x4104f0), and the
 // "Ovládání" dialog (0x40f7d0). Coordinates and texts from the EXE (analysis/ui-re.md).
-import {StaticText,Radio,Button,TextEdit,ColorSet,Picture,ListBox,Bulanek,Window,loadSpriteManifest} from './widgets.js';
+import {StaticText,Radio,Check,Button,TextEdit,ColorSet,Picture,ListBox,Bulanek,Window,loadSpriteManifest} from './widgets.js';
 import {measure} from './font.js';
 import {RULE_SUMMARY} from './game-type-dialog.js';
 import {duplicateName,nameUsedText} from './msg-dialog.js';
@@ -43,7 +43,7 @@ export function keysDialog(keys) {
 }
 
 // Screen 2 (window 230,50 - 760,560): one column per player (x0 = 34 + 130 i).
-export async function startGame2({total,humans,rules,levelKey,onBack,onStart,onRules,onSettings,onKeys,onPlayersChange=()=>{},onLevelChange=()=>{},onMessage=async()=>{},random=Math.random,bots='original',onBots=()=>{}}) {
+export async function startGame2({total,humans,rules,levelKey,onBack,onStart,onRules,onSettings,onKeys,onPlayersChange=()=>{},onLevelChange=()=>{},onMessage=async()=>{},random=Math.random,bots='original',onBots=()=>{},fight=false,onFight=()=>{}}) {
   const manifest=await loadSpriteManifest();
   const players=humans.map(h=>({...h}));
   const widgets=[];
@@ -69,7 +69,8 @@ export async function startGame2({total,humans,rules,levelKey,onBack,onStart,onR
     new Button({x:140,y:466,text:'Zrušit',onClick:()=>onBack()}));
   // Web addition: how the training opponents behave (training.js).
   if(total===1)widgets.push(new StaticText({x:260,y:244,text:'Soupeři:',spacing:2}),
-    new Radio({x:270,y:270,w:240,items:['Stojí a teleportují se (originál)','Chodí po hřišti','Chodí a loví vás'],selected:Math.max(0,BOT_MODES.indexOf(bots)),onChange:i=>onBots(BOT_MODES[i])}));
+    new Radio({x:270,y:270,w:240,items:['Stojí a teleportují se (originál)','Chodí po hřišti','Chodí a loví vás'],selected:Math.max(0,BOT_MODES.indexOf(bots)),onChange:i=>onBots(BOT_MODES[i])}),
+    new Check({x:270,y:326,w:240,text:'Střílí i po sobě',checked:fight,onChange:onFight}));
   const win=new Window({x:230,y:50,w:530,h:510,widgets});
   win.onCancel=()=>onBack();
   win.setFocus(widgets.find(w=>w instanceof TextEdit)??levels);
