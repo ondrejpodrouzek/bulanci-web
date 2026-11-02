@@ -84,3 +84,13 @@ html.touch-device #message{top:50px;font-size:13px}
 .net-rules{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
 .phone-tabs{grid-template-columns:1fr 1fr;margin-top:8px}.phone-tabs[hidden]{display:none}
 .phone-levels{grid-auto-rows:max-content}.phone-side{overflow-y:auto;overscroll-behavior:contain;min-height:0}.phone-level{flex:none}
+/* Portrait: everything on one screen that scrolls as a whole. The visible height (dvh) leaves out the
+   browser's toolbars, the levels are one row to swipe, so the controls keep their place. */
+html.touch-device .phone-menu,html.touch-device .phone-sheet{position:fixed;left:0;right:0;top:0;bottom:auto;height:100dvh}
+@media (orientation:portrait){
+ .phone-menu{display:flex;flex-direction:column;gap:10px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+ .phone-title h1{font-size:clamp(22px,7.5vw,32px)}
+ .phone-levels{flex:none;display:flex;gap:8px;overflow:auto hidden;scroll-snap-type:x proximity;overscroll-behavior:contain;padding-bottom:2px}
+ .phone-level{flex:0 0 42vw;scroll-snap-align:start}
+ .phone-side{flex:none;overflow:visible;gap:8px}
+}
