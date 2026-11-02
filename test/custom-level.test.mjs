@@ -30,3 +30,15 @@ test('a region sends a player to its target once per entry',()=>{
   const at=[a.x,a.y];g.update(1/60,[]);assert.deepEqual([a.x,a.y],at,'staying inside does not repeat it');
 });
 test('the counter shows the level own picture',()=>{assert.equal(levelPicture({picture:'x.jpg'}),'x.jpg');assert.equal(levelPicture({source_resource:324}),'assets/original/53.png');assert.equal(levelPicture({}),null);});
+
+test('logic audit: undead and walkers decide again when a weapon animation ends (0x421557)',()=>{
+  const g=game({undead:true}),n=g.npcs[0];n.action={};n.wanderAt=999;g.finishWeaponAction(n);assert.notEqual(n.wanderAt,999);
+});
+test('logic audit: a computer teleports right after laying a mine (0x421343), a human does not',()=>{
+  const g=new Game({mapData:{...base},mode:'training',humans:[{name:'A',colorIndex:0}]}),[a,b]=g.players;
+  for(const [p,moves] of [[a,false],[b,true]]){p.weapon=2;p.ammo[2]=1;p.teleportAt=null;p.teleportingUntil=null;g.shoot(p);const at=[p.x,p.y];for(let i=0;i<20;i++)g.update(1/60,[]);assert.equal(at[0]!==p.x||at[1]!==p.y,moves);}
+});
+test('logic audit: one human alone keeps the solo rules',()=>{
+  const g=new Game({mapData:{...base},mode:'local',humans:[{name:'A',colorIndex:0}],botCount:2});
+  assert.ok(g.powerups);assert.equal(g.nextPickupAt,10);
+});

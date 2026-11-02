@@ -9,7 +9,7 @@ export const CAPACITY=[5,4,4,1,4,2];
 // "Mód zbraní" (saved settings +0x88 = game config +0x19d, texts 0x1b0..0x1b8): 1 = všechny zbraně (+0x368 = 6),
 // 0 = pouze brokovnice (+0x368 = 2). Timer1 of the game object (0x41c1f6) only exists with all weapons,
 // 5000 ms with several players, 10000 ms with one (0x41c1ff).
-export const spawnPeriod=game=>game.mode==='training'?10:5;
+export const spawnPeriod=game=>game.mode==='training'||game.humans?.length===1?10:5;
 export const weaponsEnabled=game=>game.weaponMode==='classic';
 const SHOTGUN_SLOT=0x64,OTHER_SLOTS=[0x65,0x66,0x67,0x68,0x69,0x6a,0x6b];
 
@@ -18,7 +18,7 @@ export const shotgunOnly=game=>game.weaponMode==='shotgun';
 export function createPickups(game) {
   game.nextPickupAt=weaponsEnabled(game)?game.elapsed+spawnPeriod(game):Infinity;game.pickups=[];
   // Shotgun-only: one shotgun is laid at the start (0x4202f6 -> 0x41f1d0, not with one player).
-  if(shotgunOnly(game)&&game.mode!=='training')spawnPickup(game,1);
+  if(shotgunOnly(game)&&game.mode!=='training'&&game.humans?.length!==1)spawnPickup(game,1);
   return game.pickups;
 }
 // 0x41f1d0: the single circulating shotgun returns to the map when its holder empties it

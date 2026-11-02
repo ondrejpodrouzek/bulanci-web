@@ -336,3 +336,9 @@ The EXE loads `*.eap` beside it. An .eap has the format of the EXE overlay, ids 
 ## Web additions for network play
 
 Not in the EXE: rooms with Každý sám, Týmy or Kooperace, up to six bots, bots that shoot each other (`hostile`, `allied`, `assignTeams` in `rules.js`). A team mate's shots pass through and cannot kill. With the setting off and no teams, targets stay the EXE's: humans only.
+
+## Logic audit, 2 Nov 2026
+
+Checked against the disassembly, not older notes: the weapon table `0x482820`, capacities `0x481a60`, rate of fire (frames - 1 of the animation, the timer `0x439b90` stops on the last one), ammo deduction call sites of `0x417500` (the SMG spends one per burst), the swept shot test `0x41de60`, weapon switching `0x41eca0`. All call sites of the random generator in `0x412000`-`0x422000` lie in functions already covered. 319 of 485 functions in that range have no note yet (8298 of 19593 instructions), mostly network messages and scene management; the largest was sampled, not read in full.
+
+Found and fixed: the undead and walkers make their next move decision when a weapon animation ends (`0x421557` -> `0x420a90`); a computer teleports right after laying a mine (`0x421343`); walkers re-arm on return (`0x41f805`); one human against bots keeps the solo rules for pickups and power-ups.

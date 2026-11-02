@@ -14,7 +14,7 @@ const EFFECTS=['invisible','shield','ammo'];
 // 0x41a020: bank-0 (global bank 4) sample by kind for the first player, 0x22 for anyone else.
 const HUMAN_SAMPLE=[0x20,0x23,0x21,0x1f],OTHER_SAMPLE=0x22;
 
-export const powerupsEnabled=game=>game.mode==='training';
+export const powerupsEnabled=game=>game.mode==='training'||game.humans?.length===1; // one human, 0x4205a0
 export function createPowerups(game){return powerupsEnabled(game)?{phase:0,at:game.elapsed+POWERUP_WAIT,item:null}:null;}
 export const hasEffect=(actor,name)=>(actor.effects?.[name]??0)>0;
 

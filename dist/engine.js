@@ -11,7 +11,7 @@ import {updateTrainingBot,updateWalkingBot,BOT_MODES,trainingRespawnWeapon,train
 import {createPowerups,updatePowerups,hasEffect} from './powerups.js';
 import {updateRegions} from './custom-level.js';
 import {isEightBit,prepareEightBit,createEightBit,updateEightBit,eightBitShotHit} from './eightbit.js';
-import {teleporting} from './training.js';
+import {teleporting,teleport} from './training.js';
 import {resolveRules,refreshScores,afterKill,afterDeath,eliminated,assignTeams,allied} from './rules.js';
 import {createPickups,updatePickups,humanDied,weaponEnded} from './pickups.js';
 import {defaultHumans,colorCss} from './players.js';
@@ -66,7 +66,7 @@ export class Game{
   // negative gun is drawn from 0x482918 (0x41e603). They think like the undead.
   (mapData?.walkers??[]).slice(0,4).forEach((w,i)=>{const gun=w.weapon<0?[0,1,4,5][Math.floor(random()*4)]:w.weapon,n={id:36+i,npc:true,walker:true,gun,active:true,spawned:false,speedPercent:Math.max(40,Math.min(200,w.speed)),colorIndex:w.colorIndex&7,x:0,y:0,direction:Math.floor(random()*4),dead:0,score:0,deaths:0,weapon:gun,ammo:[5,0,0,0,0,0],cooldown:0,reloading:0,moving:false,walk:0,think:0,deathElapsed:0,lastShotWeapon:0};this.npcs.push(n);this.spawnNpc(n);});
   for(const m of mapData?.mines??[])this.mines.push({...m,w:31,h:18,owner:-1,placedAt:0,armAt:2,armed:false,dead:false,resource:177}); // native_66: CMina
-  this.pickups=createPickups(this);}
+  this.powerups=createPowerups(this);this.pickups=createPickups(this);}
  // Pistol timer 0 ticks every 150 ms alone, 500 ms otherwise (0x41e9f0); the 16th tick reloads (0x420b4b).
  reloadTime(){return RELOAD_TICKS*(this.humans.length===1?.15:.5);}
  actors(){return this.players.concat(this.npcs);}
@@ -205,7 +205,7 @@ export class Game{
    const p=this.actors().find(p=>p.id===event.owner);
    if(!p||p.dead>0||p.active===false||p.weapon!==event.weapon||p.weaponEpoch!==event.epoch)continue;
    if(event.weapon===4){this.spawnBullet(p,4,p.direction,0,false,event.at,3+event.round);this.onEvent({type:'shot',player:p,weapon:4,round:event.round,sound:{bank:3,sample:event.round===3?4:3}});}
-   else if(event.weapon===2){placeMine(this,p,event.at);if(!this.freeAmmo(p))p.ammo[2]--;}
+   else if(event.weapon===2){placeMine(this,p,event.at);if(!this.freeAmmo(p))p.ammo[2]--;if(p.bot||p.npc)teleport(this,p);} // 0x421343: a computer leaves its mine at once
    else if(event.weapon===5){this.spawnBullet(p,5,p.direction,0,true,event.at);if(!this.freeAmmo(p))p.ammo[5]--;this.onEvent({type:'shot',player:p,weapon:5});}
   }
   if(isEightBit(this.map))updateEightBit(this);else updateCreatures(this);updateRegions(this);updateMines(this);updatePowerups(this,dt);updateSceneAnims(this);

@@ -70,7 +70,7 @@ export function resetWander(game,n) {
   n.wanderAt=game.elapsed+1+Math.min(9,Math.floor(game.random()*10));
   n.sightPollAt=game.elapsed+2;
 }
-function turn(game,n) {
+export function turn(game,n) {
   // 0x420a90: 1/13 of idle-weapon decisions release the current movement key.
   if(Math.floor(game.random()*13)===0&&n.moving)n.paused=true;
   else {game.face(n,Math.min(3,Math.floor(game.random()*4)));n.paused=false;}
@@ -84,6 +84,8 @@ export function updateUndead(game,n,dt) {
     if(n.dead<=0) {
       // 0x41f770 plays the spawn line on every return (the undead slot's own sample, 0x416670).
       game.spawnNpc(n);n.fade=0;n.fadeMs=0;game.onEvent({type:'spawn',player:n});
+      // 0x41f805: any id above 3 re-arms on return, 10 in 101 the shotgun (a no-op for the undead).
+      if(n.walker&&game.weaponMode==='classic')n.weapon=Math.floor(game.random()*101)<10?1:0;
       // 0x420480: one third of returns may bring another dormant undead into play.
       if(n.undead&&Math.floor(game.random()*3)===0) {
         const next=game.npcs.find(q=>q.active===false);

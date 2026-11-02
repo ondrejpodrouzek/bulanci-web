@@ -1,6 +1,6 @@
 // Training opponents: computer CBulanek ids 0x7d..0x7f, created only when one human plays
 // (0x4205a0, config+0xd8 == 1). Recovered from the supplied EXE; evidence in reconstruction.md.
-import {sensorMasks,sensorTargets,sensorSees,visibleTarget} from './exitus.js';
+import {sensorMasks,sensorTargets,sensorSees,visibleTarget,turn} from './exitus.js';
 import {playerRect,canPlaceActor,BODY_WIDTH as BODY_W} from './collision.js';
 
 // 0x41f805: on respawn a computer (id > 3) re-arms with type (rand*101>>15 < 10), i.e. the
@@ -29,7 +29,8 @@ export function teleport(game,p,to=null) {
   return true;
 }
 // 0x421579: when a computer's weapon animation ends, 40 of 100 times it teleports away.
-export function trainingWeaponEnded(game,p){if(p.bot&&game.botMode==='original'&&Math.floor(game.random()*100)<40)teleport(game,p);}
+// The undead and walkers (ids 0x20..0x27) make their next move decision instead (0x421557 -> 0x420a90).
+export function trainingWeaponEnded(game,p){if(p.undead||p.walker){turn(game,p);return;}if(p.bot&&game.botMode==='original'&&Math.floor(game.random()*100)<40)teleport(game,p);}
 
 // Computers have no wander timer (timer4 is NPC-only, 0x420bf6) and never walk. Four sensors
 // (ctor 0x41e690) reach the battlefield edges. A human entering one (message 0x421047) turns
