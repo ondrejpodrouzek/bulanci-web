@@ -85,7 +85,7 @@ export function updateUndead(game,n,dt) {
       // 0x41f770 plays the spawn line on every return (the undead slot's own sample, 0x416670).
       game.spawnNpc(n);n.fade=0;n.fadeMs=0;game.onEvent({type:'spawn',player:n});
       // 0x420480: one third of returns may bring another dormant undead into play.
-      if(Math.floor(game.random()*3)===0) {
+      if(n.undead&&Math.floor(game.random()*3)===0) {
         const next=game.npcs.find(q=>q.active===false);
         if(next){next.active=true;game.spawnNpc(next);next.fade=0;next.fadeMs=0;game.onEvent({type:'spawn',player:next});}
       }

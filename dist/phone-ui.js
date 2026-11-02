@@ -15,7 +15,9 @@ export function createPhoneMenu({root,colors,thumb,bots,onBots,fight,onFight,onP
   const player={name:'Bulík',colorIndex:0,...load()};
   let level='malaria',original=false,visible=true,closeSheet=null;
   const menu=el('section','phone-menu');menu.id='phone-menu';
-  const head=el('header','phone-title');head.append(el('h1','','BULÁNCI'));
+  const head=el('header','phone-title');head.append(el('h1','','BULÁNCI'),tabs);
+  let group=0,entries=[];
+  const tabs=el('div','phone-foes phone-tabs');tabs.hidden=true;
   const levels=el('div','phone-levels');levels.setAttribute('role','listbox');levels.setAttribute('aria-label','Level');
   const name=el('input','phone-name');Object.assign(name,{value:player.name,maxLength:16,autocomplete:'off',enterKeyHint:'done'});name.setAttribute('aria-label','Jméno hráče');
   const swatches=el('div','phone-colors');
@@ -37,8 +39,10 @@ export function createPhoneMenu({root,colors,thumb,bots,onBots,fight,onFight,onP
   function refresh(){menu.hidden=!visible||original;back.hidden=!visible||!original;}
   function setOriginal(on){original=on;refresh();}
   function setVisible(on){visible=on;if(!on)original=false;refresh();}
-  function setMaps(entries){
-    levels.replaceChildren(...entries.map(({key,name:title,map})=>{const b=button('phone-level','',()=>{level=key;paint();});b.dataset.level=key;b.setAttribute('role','option');const im=el('img');im.src=thumb(map);im.alt='';im.loading='lazy';b.append(im,el('span','',title));return b;}));
+  function setMaps(list){entries=list;tabs.hidden=!list.some(e=>e.custom);tabs.replaceChildren(...['Klasické','Custom'].map((t,i)=>{const b=button('',t,()=>{group=i;level=entries.find(e=>!!e.custom===!!i)?.key??level;showMaps();});b.setAttribute('aria-pressed',String(i===group));return b;}));showMaps();}
+  function showMaps(){
+    for(const [i,b] of [...tabs.children].entries())b.setAttribute('aria-pressed',String(i===group));
+    levels.replaceChildren(...entries.filter(e=>!!e.custom===!!group).map(({key,name:title,map})=>{const b=button('phone-level','',()=>{level=key;paint();});b.dataset.level=key;b.setAttribute('role','option');const im=el('img');im.src=thumb(map);im.alt='';im.loading='lazy';b.append(im,el('span','',title));return b;}));
     paint();play.disabled=false;play.textContent='Hrát trénink';
   }
   // One sheet at a time; resolves with the id of the action that closed it.

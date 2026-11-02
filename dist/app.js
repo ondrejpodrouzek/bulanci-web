@@ -13,7 +13,7 @@ import {setUiSound} from './ui/widgets.js';
 import {createHud} from './hud.js';
 import {drawText} from './ui/font.js';
 import {gameTypeDialog,RULE_SUMMARY} from './ui/game-type-dialog.js';
-import {startGame1,startGame2,keysDialog,LEVELS} from './ui/start-game.js';
+import {startGame1,startGame2,keysDialog,LEVELS,CUSTOM_LEVELS,allLevels} from './ui/start-game.js';
 import {msgDialog,nameUsedText} from './ui/msg-dialog.js';
 import {setupDialog} from './ui/setup-dialog.js';
 import {pauseDialog} from './ui/pause-dialog.js';
@@ -48,7 +48,8 @@ function sheet(src,fallback){const im=bitmaps.get(src)??image(src);return sheetR
 function image(src){if(!images.has(src)){const im=new Image();im.src=src;images.set(src,im);}return images.get(src);}
 function drawImage(src,x,y,w,h){const im=image(src);if(im.complete&&im.naturalWidth){if(w!==undefined)ctx.drawImage(im,x,y,w,h);else ctx.drawImage(im,x,y);}}
 function message(text){$('#message').textContent=text;$('#message').style.opacity=1;toastUntil=performance.now()+2500;}
-function load(){return Promise.all([fetch('assets/original/maps.json').then(r=>{if(!r.ok)throw Error('Chybí data map');return r.json();}),fetch('assets/original/sprites/manifest.json').then(r=>r.json())]).then(([m,s])=>{maps=m;manifest=s;for(const map of Object.values(maps))for(const l of map.layers)image(l.resource===310?'assets/disco.jpg':`assets/original/${l.resource}.png`);for(const row of SHOT_DATA)for(const shot of row)image(`assets/original/${shot.resource}.png`);for(const n of manifest.undead_variant?.resources??[])image(`assets/original/sprites/${n}-undead-sheet.png`);for(const [n,r] of Object.entries(manifest.resources))if(r.width*r.height*r.frames<=1<<20)image(`assets/original/sprites/${n}-sheet.png`);image('assets/original/117.png');for(const map of Object.values(maps)){const path=levelPicture(map);if(path)image(path);}loading=false;phoneMenu?.setMaps([...$('#map-select').options].filter(o=>maps[o.value]).map(o=>({key:o.value,name:o.textContent,map:maps[o.value]})));$('#start-text').disabled=false;$('#start-text').textContent='START HRY';}).catch(e=>{loading=false;message('Nepodařilo se načíst data: '+e.message);console.error(e);});}
+function load(){return Promise.all([fetch('assets/original/maps.json').then(r=>{if(!r.ok)throw Error('Chybí data map');return r.json();}),fetch('assets/original/sprites/manifest.json').then(r=>r.json()),fetch('assets/custom/maps.json').then(r=>r.ok?r.json():{}).catch(()=>({}))]).then(([m,s,custom])=>{maps={...m,...custom};manifest=s;
+  for(const [key,map] of Object.entries(custom)){CUSTOM_LEVELS.push([key,map.name]);const o=document.createElement('option');o.value=key;o.textContent=map.name;$('#map-select').append(o);}for(const map of Object.values(m))for(const l of map.layers)image(l.resource===310?'assets/disco.jpg':`assets/original/${l.resource}.png`);for(const row of SHOT_DATA)for(const shot of row)image(`assets/original/${shot.resource}.png`);for(const n of manifest.undead_variant?.resources??[])image(`assets/original/sprites/${n}-undead-sheet.png`);for(const [n,r] of Object.entries(manifest.resources))if(r.width*r.height*r.frames<=1<<20)image(`assets/original/sprites/${n}-sheet.png`);image('assets/original/117.png');for(const map of Object.values(maps)){const path=levelPicture(map);if(path)image(path);}loading=false;phoneMenu?.setMaps([...$('#map-select').options].filter(o=>maps[o.value]).map(o=>({key:o.value,name:o.textContent,map:maps[o.value],custom:!!maps[o.value].custom})));$('#start-text').disabled=false;$('#start-text').textContent='START HRY';}).catch(e=>{loading=false;message('Nepodařilo se načíst data: '+e.message);console.error(e);});}
 function clear(){keys.length=0;touch.reset();}
 function showMenu(){if(netPlay)return netPause();if(!game||game.over||dialogs.modalOpen)return;menu=true;paused=true;clear();$('#menu').hidden=false;$('#resume').hidden=false;showStartScreen();}
 // Original pause (0x41c290): the game stands still under the Hra je pozastavena dialog.
@@ -126,8 +127,8 @@ function player(p){
  if(!p.npc&&!p.bot&&!game.rules?.play&&(p.id===0||game.mode==='local')){ctx.fillStyle=p.id===0?'#fff':'#fa8888';ctx.font='10px Tahoma';ctx.textAlign='center';ctx.fillText(String(p.id+1),p.x,p.y-info.height+9);}
 }
 
-const layerSrc=l=>l.resource===310?'assets/disco.jpg':`assets/original/${l.resource}.png`;
-const layerIsFg=(l,i)=>l.fg===undefined?i>0:!!l.fg;
+const layerSrc=l=>l.src?l.src:l.resource===310?'assets/disco.jpg':`assets/original/${l.resource}.png`;
+const layerIsFg=(l,i)=>l.fg===undefined?i>0:!!l.fg,depthSorted=map=>!!map.custom||[320,321,323,324].includes(map.source_resource);
 // Player panel origins (0x4af924) and CSpells icons: bitmap 78 cut at the same x as drawn
 // (0x4278c0 rect table 0x4b39b8: eye 25..36, shield 0..11, ammo 13..23), panel offset (6,41).
 const hud=createHud({image,drawText}),hudLayer=pictureBuffer(800,105),HUD_X=[12,149,556,693],SPELL_RECTS=[[25,11],[0,11],[13,10]];
@@ -146,7 +147,7 @@ function render(){display.begin();ctx.fillStyle='#000';ctx.fillRect(0,0,800,600)
    ctx.save();if(hidden){ctx.globalCompositeOperation='lighter';ctx.globalAlpha=0x30/255;}if(p.undead&&p.dead<=0)ctx.filter=`brightness(${p.fade??1})`;player(p);ctx.restore();}}));
   for(const mn of game.mines)actors.push({z:mn.y+4,draw:()=>sprite(177,mn.x,mn.y,0,false,null,objectFrame(mn,game.elapsed))});
   for(const c of game.creatures)if(c.layer===1)actors.push({z:c.y+(c.offsetY??0)+c.h+(c.z??0),draw:()=>drawCreature(c)});
-  if([320,321,323,324].includes(map.source_resource))for(const l of map.layers)if(l.fg&&!l.overlay){const im=image(layerSrc(l));actors.push({z:l.y+(im.naturalHeight||0)+(l.z??0),draw:()=>drawImage(layerSrc(l),l.x,l.y)});}
+  if(depthSorted(map))for(const l of map.layers)if(l.fg&&!l.overlay){const im=image(layerSrc(l));actors.push({z:l.y+(im.naturalHeight||0)+(l.z??0),draw:()=>drawImage(layerSrc(l),l.x,l.y)});}
   // Shots are scene objects too: CShot depth 15 (0x41ef02); horizontal shotgun shots lose 5 per
   // 40px step (0x419b40). They pass behind scenery such as the mushroom cap instead of over it.
   for(const b of game.bullets){const steps=b.mask!==undefined&&b.direction<2?(b.height-b.bitmapHeight)/10:0;
@@ -159,7 +160,7 @@ function render(){display.begin();ctx.fillStyle='#000';ctx.fillRect(0,0,800,600)
  }
  // Foreground is composited at original serialized scene positions.
  // Layer-2 scene animations interleave with the top bitmaps in script insertion order.
- const top=[];map.layers.forEach((l,i)=>{if(layerIsFg(l,i)&&(![320,321,323,324].includes(map.source_resource)||!game||l.overlay))top.push({at:parseInt(l.source_offset??'0',16),draw:()=>drawImage(layerSrc(l),l.x,l.y)});});
+ const top=[];map.layers.forEach((l,i)=>{if(layerIsFg(l,i)&&(!depthSorted(map)||!game||l.overlay))top.push({at:parseInt(l.source_offset??'0',16),draw:()=>drawImage(layerSrc(l),l.x,l.y)});});
  (map.animations??[]).forEach((o,i)=>{if(o.layer)top.push({at:parseInt(o.source_offset??'0',16),draw:()=>drawAnim(o,i)});});
  for(const t of top.sort((a,b)=>a.at-b.at))t.draw();
  }if(phoneMenu)return; // phones show the whole field and their own HUD (touch-controls.js)
@@ -204,7 +205,7 @@ async function showScreen1(){if(netPlay)return;await dialogs.show(startGame1({to
 // not stop for one player. A round ends in the results and everybody stays in the room.
 let netPlay=null,netPauseClose=null;
 const netUI=(phoneMenu?createNetUI:createNetScreens)({dialogs,root:document.body,phone:true,colors:PLAYER_COLORS.map((_,i)=>colorCss(i)),
-  levels:()=>LEVELS.filter(([key])=>maps[key]).map(([key,name])=>({key,name,src:layerSrc(maps[key].layers[0])})),
+  levels:()=>allLevels().filter(([key])=>maps[key]).map(([key,name])=>({key,name,src:layerSrc(maps[key].layers[0]),custom:!!maps[key].custom})),
   sprite:(colorIndex,seat)=>{const n=180+seat%4,info=manifest.resources[n];return info&&{url:`assets/original/sprites/${n}-c${colorIndex}-sheet.png`,w:info.width,h:info.height,frames:info.frames,ms:info.duration_ticks};},
   keyHint:keys=>{const k=KEYSETS[keys??0],short=keyName;return keys===0?'Šipky, střelba mezerník, zbraň C':`${k.slice(0,4).map(short).join(' ')}, střelba ${short(k[4])}, zbraň ${short(k[5])}`;},
   ruleRanges:RULE_RANGES});
@@ -230,7 +231,7 @@ async function openNet({notice=null,code=null}={}) {
   if(code)joinGame(net,code);
 }
 const ruleSummary=()=>{const r=rulesState.net;return [PLAY_NAMES[r.play]+'.',RULE_SUMMARY[rulesState.type](rulesState.limits[rulesState.type]),rulesState.weapons==='shotgun'?'Pouze brokovnice.':'',r.bots?`Boti: ${r.bots}.`:''].filter(Boolean).join(' ');};
-function hostInfo(){const level=$('#map-select').value;return {level,levelName:LEVELS.find(l=>l[0]===level)?.[1]??'',summary:ruleSummary(),rules:{type:rulesState.type,limit:rulesState.limits[rulesState.type],weapons:rulesState.weapons,...rulesState.net},playing:!!netPlay?.round};}
+function hostInfo(){const level=$('#map-select').value;return {level,levelName:allLevels().find(l=>l[0]===level)?.[1]??'',summary:ruleSummary(),rules:{type:rulesState.type,limit:rulesState.limits[rulesState.type],weapons:rulesState.weapons,...rulesState.net},playing:!!netPlay?.round};}
 // The level is loaded everywhere, or READY_TIMEOUT ran out (a slow guest catches up in the round).
 function guestsReady(){const net=netPlay.net,wait=new Set(netPlay.owners.filter(p=>p!==0));return new Promise(done=>{let timer=0;const check=()=>{if(wait.size)return;clearTimeout(timer);offs.forEach(f=>f());done();};const offs=[net.on('ready',m=>{wait.delete(m.from);check();}),net.on('peer-leave',m=>{wait.delete(m.peer);check();})];timer=setTimeout(()=>{wait.clear();check();},READY_TIMEOUT);check();});}
 function lobbyEntered(net,role,id){clearInterval(netPlay.poll);Object.assign(netPlay,{role,code:id,chat:[],players:[],info:null});}
@@ -329,8 +330,8 @@ async function showExit(){await dialogs.show(exitScreen({manifest:await loadSpri
 async function loadLevel(map,players=[],picture=null){
   await dialogs.ready;
   // The round's colour sheets load with the level: a sprite must not be missing when first used.
-  const colors=[...new Set([...players.map(p=>p.colorIndex),...(map.npcs?[1,2,3]:[])])],sheetPath=(n,c)=>`assets/original/sprites/${n}-${c}-sheet.png`;
-  const sheets=[...colors.flatMap(c=>manifest.original_color_variant_resources.map(n=>sheetPath(n,'c'+c))),...(map.source_resource===324?manifest.undead_variant.resources.map(n=>sheetPath(n,'undead')):[])];
+  const colors=[...new Set([...players.map(p=>p.colorIndex),...(map.npcs?[1,2,3]:[]),...(map.walkers??[]).map(w=>w.colorIndex&7)])],sheetPath=(n,c)=>`assets/original/sprites/${n}-${c}-sheet.png`;
+  const sheets=[...colors.flatMap(c=>manifest.original_color_variant_resources.map(n=>sheetPath(n,'c'+c))),...(map.source_resource===324||map.undead?manifest.undead_variant.resources.map(n=>sheetPath(n,'undead')):[])];
   const ims=[...new Set([...(picture?[picture]:[]),...map.layers.map(layerSrc),...sheets,...(map.animations??[]).filter(o=>manifest.resources[o.resource]).map(o=>`assets/original/sprites/${o.resource}-sheet.png`)])].map(image),win=loadingDialog();
   const update=()=>win.progress(ims.filter(im=>im.complete).length,ims.length);update();
   const shown=dialogs.open(win),frame=()=>new Promise(r=>requestAnimationFrame(r));await frame();

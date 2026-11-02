@@ -9,6 +9,7 @@ import {isExitus,prepareExitus,updateUndead,resetWander} from './exitus.js';
 import {isBedtime,prepareBedtime,createCreatures,updateCreatures,creatureVulnerable,hitCreature} from './bedtime.js';
 import {updateTrainingBot,updateWalkingBot,BOT_MODES,trainingRespawnWeapon,trainingWeaponEnded,armTeleport,TELEPORT_MS} from './training.js';
 import {createPowerups,updatePowerups,hasEffect} from './powerups.js';
+import {updateRegions} from './custom-level.js';
 import {isEightBit,prepareEightBit,createEightBit,updateEightBit,eightBitShotHit} from './eightbit.js';
 import {teleporting} from './training.js';
 import {resolveRules,refreshScores,afterKill,afterDeath,eliminated,assignTeams,allied} from './rules.js';
@@ -60,7 +61,11 @@ export class Game{
   // Computers (ids > 3) get a random colour (0x41e7f0); training adds three of them.
   this.players=Array.from({length:mode==='training'?4:this.humans.length+botCount},(_,id)=>{const h=this.humans[id],colorIndex=h?h.colorIndex:Math.floor(random()*8);return {id,bot:!h,spawned:false,speedPercent:100,name:h?h.name:'Soupeř '+id,colorIndex,keys:h?.keys,team:h?.team,color:colorCss(colorIndex),x:0,y:0,direction:3,dead:0,score:0,kills:0,deaths:0,weapon:0,ammo:[5,0,0,0,0,0],cooldown:0,reloading:0,moving:false,walk:0,think:random()*2,deathElapsed:0};});assignTeams(this.players,this.rules.play,this.botsFight);for(const p of this.players)this.spawn(p);refreshScores(this);
   // Exitus allocates four undead slots; the native initializer enables the first one.
-  this.npcs=[];const npcN=(mapData&&mapData.npcs)||0;for(let i=0;i<npcN;i++){const n={id:isExitus(mapData)?32+i:200+i,npc:true,undead:isExitus(mapData),active:!isExitus(mapData)||i===0,spawned:false,speedPercent:isExitus(mapData)?40:100,colorIndex:1+i%3,x:0,y:0,direction:Math.floor(random()*4),dead:0,score:0,deaths:0,weapon:0,ammo:[5,0,0,0,0,0],cooldown:0,reloading:0,moving:false,walk:0,think:random()*0.3,deathElapsed:0,lastShotWeapon:0};this.npcs.push(n);this.spawnNpc(n);}
+  this.npcs=[];const undead=isExitus(mapData)||!!mapData?.undead,npcN=undead?4:(mapData&&mapData.npcs)||0;for(let i=0;i<npcN;i++){const n={id:undead?32+i:200+i,npc:true,undead,active:!undead||i===0,spawned:false,speedPercent:undead?40:100,colorIndex:1+i%3,x:0,y:0,direction:Math.floor(random()*4),dead:0,score:0,deaths:0,weapon:0,ammo:[5,0,0,0,0,0],cooldown:0,reloading:0,moving:false,walk:0,think:random()*0.3,deathElapsed:0,lastShotWeapon:0};this.npcs.push(n);this.spawnNpc(n);}
+  // native_65 (0x41f5d0): up to four walkers, ids 0x24.. with their own colour, speed and gun; a
+  // negative gun is drawn from 0x482918 (0x41e603). They think like the undead.
+  (mapData?.walkers??[]).slice(0,4).forEach((w,i)=>{const gun=w.weapon<0?[0,1,4,5][Math.floor(random()*4)]:w.weapon,n={id:36+i,npc:true,walker:true,gun,active:true,spawned:false,speedPercent:Math.max(40,Math.min(200,w.speed)),colorIndex:w.colorIndex&7,x:0,y:0,direction:Math.floor(random()*4),dead:0,score:0,deaths:0,weapon:gun,ammo:[5,0,0,0,0,0],cooldown:0,reloading:0,moving:false,walk:0,think:0,deathElapsed:0,lastShotWeapon:0};this.npcs.push(n);this.spawnNpc(n);});
+  for(const m of mapData?.mines??[])this.mines.push({...m,w:31,h:18,owner:-1,placedAt:0,armAt:2,armed:false,dead:false,resource:177}); // native_66: CMina
   this.pickups=createPickups(this);}
  // Pistol timer 0 ticks every 150 ms alone, 500 ms otherwise (0x41e9f0); the 16th tick reloads (0x420b4b).
  reloadTime(){return RELOAD_TICKS*(this.humans.length===1?.15:.5);}
@@ -73,7 +78,7 @@ export class Game{
   for(let y=25;y<=503;y+=10)for(let x=25.5;x<=774.5;x+=10)if(canPlaceActor(x,y,this.map.obstacles,actors,actor))return{x,y};
   throw new Error('Mapa nemá volné místo pro hráče.');
  }
- spawnNpc(n){const pt=this.spawnPoint(n);Object.assign(n,pt,{spawned:n.active!==false,dead:0,cooldown:0,reloading:0,ammo:n.undead?[5,0,0,0,4,0]:[5,0,0,0,0,0],weapon:n.undead?4:0,direction:Math.floor(this.random()*4),moving:false,walk:0,deathElapsed:0,bodyFrame:0,motion:null,targetId:null,fireAt:null,sensorId:null,sightMasks:null,paused:false,fade:1,fadeMs:undefined});resetWander(this,n);}
+ spawnNpc(n){const pt=this.spawnPoint(n);Object.assign(n,pt,{spawned:n.active!==false,dead:0,cooldown:0,reloading:0,ammo:n.undead?[5,0,0,0,4,0]:n.walker?[5,1,1,1,1,1]:[5,0,0,0,0,0],weapon:n.undead?4:n.gun??0,direction:Math.floor(this.random()*4),moving:false,walk:0,deathElapsed:0,bodyFrame:0,motion:null,targetId:null,fireAt:null,sensorId:null,sightMasks:null,paused:false,fade:1,fadeMs:undefined});resetWander(this,n);}
  spawn(p,respawn=false){
   // A human keeps the pistol rounds through death (0x41f900 clears only types 1..5).
   // No spawn protection or fire delay: respawn 0x41f770 only shows the actor (0x42c990) and
@@ -120,7 +125,7 @@ export class Game{
  scriptShot(x,y,dir,owner=9,at=this.elapsed){return this.newBullet(x,y,dir,owner,0,at);}
  spawnBullet(p,type,dir,crossOffset=0,explodes=false,at=this.elapsed,kind){const[dx,dy]=DIRECTIONS[dir],m=muzzlePoint(p.x,p.y,dir,type,p);return this.newBullet(m.x-dy*crossOffset,m.y+dx*crossOffset,dir,p.id,type,at,kind);}
  // 0x417500: +0x199 (computers, or the ammo power-up) or id >= 4 never spends ammunition.
- freeAmmo(p){return p.undead||p.bot||hasEffect(p,'ammo');}
+ freeAmmo(p){return p.npc||p.undead||p.bot||hasEffect(p,'ammo');}
  shoot(p){
   if(p.dead||p.cooldown>0||(p.weapon===0&&p.reloading>0)||this.over)return;
   const type=p.weapon,w=WEAPONS[type];
@@ -203,10 +208,10 @@ export class Game{
    else if(event.weapon===2){placeMine(this,p,event.at);if(!this.freeAmmo(p))p.ammo[2]--;}
    else if(event.weapon===5){this.spawnBullet(p,5,p.direction,0,true,event.at);if(!this.freeAmmo(p))p.ammo[5]--;this.onEvent({type:'shot',player:p,weapon:5});}
   }
-  if(isEightBit(this.map))updateEightBit(this);else updateCreatures(this);updateMines(this);updatePowerups(this,dt);updateSceneAnims(this);
+  if(isEightBit(this.map))updateEightBit(this);else updateCreatures(this);updateRegions(this);updateMines(this);updatePowerups(this,dt);updateSceneAnims(this);
   this.teleports=this.teleports.filter(t=>this.elapsed-t.at<TELEPORT_MS/1000);
   // Exitus uses the original undead branch, independent of training opponents.
-  for(const n of this.npcs){if(n.undead){updateUndead(this,n,dt);continue;}
+  for(const n of this.npcs){if(n.undead||n.walker){updateUndead(this,n,dt);continue;}
    n.cooldown=Math.max(0,n.cooldown-dt);if(n.dead>0){n.deathElapsed+=dt;n.dead-=dt;if(n.dead<=0)this.spawnNpc(n);continue;}
    this.move(n,{direction:n.direction},dt);if(n.motionBlocked)n.direction=Math.floor(this.random()*4);
   }

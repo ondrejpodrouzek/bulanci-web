@@ -92,8 +92,9 @@ export function createNetScreens({dialogs,levels,ruleRanges}) {
       widgets.push(new StaticText({x:20,y:200,text:'Level:',spacing:2}),small({x:20,y:224,text:s.info.levelName,bright:true}));
       return;
     }
-    const all=levels();
-    widgets.push(new StaticText({x:20,y:192,text:'Level:',spacing:2}),
+    const every=levels(),custom=every.some(l=>l.key===s.info.level&&l.custom),all=every.filter(l=>!!l.custom===custom);
+    widgets.push(new StaticText({x:20,y:192,text:custom?'Custom:':'Level:',spacing:2}),
+      new Button({tag:'group',x:108,y:186,text:custom?'Klasické':'Custom',visible:every.some(l=>l.custom),onClick:()=>room.state.onLevel(every.find(l=>!!l.custom!==custom).key)}),
       new ListBox({tag:'level',x:20,y:212,w:170,h:112,items:all.map(l=>l.name),selected:Math.max(0,all.findIndex(l=>l.key===s.info.level)),onChange:i=>room.state.onLevel(all[i].key)}),
       new StaticText({x:205,y:192,text:'Hra:',spacing:2}),
       new Radio({tag:'play',x:205,y:214,w:150,items:PLAY_MODES.map(m=>PLAY_NAMES[m]),selected:Math.max(0,PLAY_MODES.indexOf(r.play)),onChange:i=>room.state.onRules({play:PLAY_MODES[i]})}),

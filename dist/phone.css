@@ -82,3 +82,4 @@ html.touch-device #message{top:50px;font-size:13px}
 
 .phone-brawl{display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;color:#bbb}.phone-brawl input{width:20px;height:20px;margin:0}
 .net-rules{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
+.phone-tabs{grid-template-columns:1fr 1fr;margin-top:8px}.phone-tabs[hidden]{display:none}

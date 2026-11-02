@@ -9,6 +9,9 @@ import {BOT_MODES} from '../training.js';
 
 // Level list order: the original list as seen on a period screenshot (Na dobrou noc, Malárie,
 // Noční směna, Vybíjená), then the two later levels.
+// Add-on levels (.eap) as [key, name]; filled from assets/custom/maps.json when the page loads.
+export const CUSTOM_LEVELS=[];
+export const allLevels=()=>[...LEVELS,...CUSTOM_LEVELS];
 export const LEVELS=[['bedtime','Na dobrou noc'],['malaria','Malárie'],['factory','Noční směna'],['disco','Vybíjená'],['eightbit','V zajetí 8-bitu'],['exitus','Exitus']];
 
 // Screen 1 (window 250,60 - 760,560). The original chose Vytvořit / Připojit se, players in total,
@@ -59,13 +62,18 @@ export async function startGame2({total,humans,rules,levelKey,onBack,onStart,onR
   const summary=new StaticText({x:122,y:214,text:summaryText(),font:175});
   if(total>1)widgets.push(new Button({x:31,y:208,text:'Typ hry',onClick:async()=>{await onRules();summary.text=summaryText();}}));
   else{const label='Typ hry:';widgets.push(new StaticText({x:20,y:210,text:label,spacing:2}));summary.x=20+measure(174,label,{spacing:2}).w+10;}
-  const levels=new ListBox({x:30,y:270,w:200,h:170,items:LEVELS.map(l=>l[1]),selected:Math.max(0,LEVELS.findIndex(l=>l[0]===levelKey)),onChange:i=>onLevelChange(LEVELS[i][0])});
+  let group=CUSTOM_LEVELS.some(l=>l[0]===levelKey)?1:0;const shown=()=>group?CUSTOM_LEVELS:LEVELS;
+  const levels=new ListBox({x:30,y:270,w:200,h:170,items:shown().map(l=>l[1]),selected:Math.max(0,shown().findIndex(l=>l[0]===levelKey)),onChange:i=>onLevelChange(shown()[i][0])});
+  const levelsLabel=new StaticText({x:20,y:244,text:group?'Custom:':'Levely:',spacing:2});
+  // Web: the add-on levels have their own list beside the classic ones.
+  const groupButton=new Button({x:100,y:238,text:group?'Klasické':'Custom',visible:CUSTOM_LEVELS.length>0,onClick:()=>{
+    group=1-group;levels.items=shown().map(l=>l[1]);levels.selected=0;levels.top=0;groupButton.text=group?'Klasické':'Custom';levelsLabel.text=group?'Custom:':'Levely:';onLevelChange(shown()[0][0]);}});
   widgets.push(summary,
     new Button({x:400,y:210,text:'Nastavení',onClick:()=>onSettings()}),
-    new StaticText({x:20,y:244,text:'Levely:',spacing:2}),levels,
+    levelsLabel,groupButton,levels,
     new Button({x:40,y:466,text:'Start',onClick:async()=>{
       const used=duplicateName(players.map(p=>p.name));if(used!==null){await onMessage(nameUsedText(used));return;}
-      onStart({players,levelKey:LEVELS[levels.selected][0]});}}),
+      onStart({players,levelKey:shown()[levels.selected][0]});}}),
     new Button({x:140,y:466,text:'Zrušit',onClick:()=>onBack()}));
   // Web addition: how the training opponents behave (training.js).
   if(total===1)widgets.push(new StaticText({x:260,y:244,text:'Soupeři:',spacing:2}),

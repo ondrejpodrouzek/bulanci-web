@@ -11,7 +11,7 @@ export const COUNTER_TICK=1000,COUNTER_STEPS=5;
 export const LAMP_X=[517,587,657,727],LAMP_Y=537,LAMP_OFF=34,LAMP_ON=35,LAMP_LAST=36;
 // background_res of each level script, by level resource.
 const PICTURES={319:'menu-level-311.jpg',320:'menu-level-312.jpg',321:'88.png',322:'104.png',323:'105.png',324:'53.png'};
-export const levelPicture=map=>{const name=PICTURES[map?.source_resource];return name?`assets/original/${name}`:null;};
+export const levelPicture=map=>{if(map?.picture)return map.picture;const name=PICTURES[map?.source_resource];return name?`assets/original/${name}`:null;};
 export const counterSample=step=>step<3?18:step===3?17:null;
 
 export function counterScreen(picture) {

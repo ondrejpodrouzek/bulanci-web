@@ -266,8 +266,9 @@ export class GameAudio extends EventTarget {
     this.lastEvent.clear();
     this.levelID = Number(map?.source_resource ?? LEVEL_IDS[key]);
     this.levelKey = key;
+    this.levelMusic = map?.music ? `custom:${map.music}` : null;
     this.scene = 'level';
-    const id = this.catalog?.levels[this.levelID]?.music;
+    const id = this.levelMusic ?? this.catalog?.levels[this.levelID]?.music;
     if (id && this.tracks.has(id)) this.tracks.get(id).currentTime=0;
     this.applyScene();
   }
@@ -298,7 +299,7 @@ export class GameAudio extends EventTarget {
     const night = isMenuNight(this.settings.menuTheme);
     // The statistics screen has no music track; it plays sample 4/29 in the music group (0x411add).
     // A Historie film stops the menu music for its length (0x424010).
-    const id = this.scene === 'score' || this.scene === 'film' ? null : this.scene === 'level' ? this.catalog.levels[this.levelID]?.music : this.scene === 'pause' ? this.catalog.scenes.pause : night ? this.catalog.scenes.menuNight : this.catalog.scenes.menuDay;
+    const id = this.scene === 'score' || this.scene === 'film' ? null : this.scene === 'level' ? this.levelMusic ?? this.catalog.levels[this.levelID]?.music : this.scene === 'pause' ? this.catalog.scenes.pause : night ? this.catalog.scenes.menuNight : this.catalog.scenes.menuDay;
     if (id !== this.musicID) {
       for (const track of this.tracks.values()) track.pause();
       this.musicID=id;
@@ -306,7 +307,7 @@ export class GameAudio extends EventTarget {
     if (id && !this.tracks.has(id)) {
       const track=this.mediaFactory();
       track.preload='auto'; track.loop=true;
-      track.src=new URL(`./${this.catalog.music[id].url}`,import.meta.url).href;
+      track.src=new URL(String(id).startsWith('custom:')?`./${id.slice(7)}`:`./${this.catalog.music[id].url}`,import.meta.url).href;
       track.addEventListener('error',()=>this.report(new Error(`Cannot decode music resource ${id}`)));
       this.tracks.set(id,track);
     }
